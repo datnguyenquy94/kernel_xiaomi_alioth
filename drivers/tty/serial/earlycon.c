@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2014 Linaro Ltd.
- * Copyright (C) 2021 XiaoMi, Inc.
  * Author: Rob Herring <robh@kernel.org>
  *
  * Based on 8250 earlycon:
@@ -208,7 +207,6 @@ bool earlycon_acpi_spcr_enable __initdata;
 #ifdef CONFIG_FASTBOOT_CMD_CTRL_UART
 bool is_early_cons_enabled;
 #endif
-
 
 /* early_param wrapper for setup_earlycon() */
 static int __init param_setup_earlycon(char *buf)

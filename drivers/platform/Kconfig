@@ -13,6 +13,4 @@ source "drivers/platform/mellanox/Kconfig"
 
 source "drivers/platform/msm/Kconfig"
 
-if ARCH_QCOM
 source "drivers/platform/xiaomi/Kconfig"
-endif

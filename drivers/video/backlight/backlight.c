@@ -2,7 +2,6 @@
  * Backlight Lowlevel Control Abstraction
  *
  * Copyright (C) 2003,2004 Hewlett-Packard Company
- * Copyright (C) 2021 XiaoMi, Inc.
  *
  */
 
@@ -120,7 +119,9 @@ static void backlight_generate_event(struct backlight_device *bd,
 	envp[1] = NULL;
 	kobject_uevent_env(&bd->dev.kobj, KOBJ_CHANGE, envp);
 	sysfs_notify(&bd->dev.kobj, NULL, "actual_brightness");
+#ifdef CONFIG_MACH_XIAOMI_SM8250
 	sysfs_notify(&bd->dev.kobj, NULL, "brightness");
+#endif
 }
 
 static ssize_t bl_power_show(struct device *dev, struct device_attribute *attr,
@@ -182,6 +183,7 @@ int backlight_device_set_brightness(struct backlight_device *bd,
 		if (brightness > bd->props.max_brightness)
 			rc = -EINVAL;
 		else {
+#ifdef CONFIG_MACH_XIAOMI_SM8250
 			if ((!bd->use_count && brightness) || (bd->use_count && !brightness)) {
 				pr_info("%s: set brightness to %lu\n", __func__, brightness);
 				if (!bd->use_count)
@@ -189,6 +191,7 @@ int backlight_device_set_brightness(struct backlight_device *bd,
 				else
 					bd->use_count--;
 			}
+#endif
 			pr_debug("set brightness to %lu\n", brightness);
 			bd->props.brightness = brightness;
 			rc = backlight_update_status(bd);
@@ -219,6 +222,7 @@ static ssize_t brightness_store(struct device *dev,
 				bd->usr_brightness_req :
 				bd->thermal_brightness_limit;
 #endif
+
 	rc = backlight_device_set_brightness(bd, brightness);
 
 	return rc ? rc : count;
@@ -301,6 +305,7 @@ static void bl_device_release(struct device *dev)
 	kfree(bd);
 }
 
+#ifdef CONFIG_MACH_XIAOMI_SM8250
 static ssize_t brightness_clone_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -334,6 +339,7 @@ static ssize_t brightness_clone_store(struct device *dev,
 }
 
 static DEVICE_ATTR_RW(brightness_clone);
+#endif
 
 static struct attribute *bl_device_attrs[] = {
 	&dev_attr_bl_power.attr,
@@ -341,7 +347,9 @@ static struct attribute *bl_device_attrs[] = {
 	&dev_attr_actual_brightness.attr,
 	&dev_attr_max_brightness.attr,
 	&dev_attr_type.attr,
+#ifdef CONFIG_MACH_XIAOMI_SM8250
 	&dev_attr_brightness_clone.attr,
+#endif
 	NULL,
 };
 ATTRIBUTE_GROUPS(bl_device);
@@ -397,8 +405,8 @@ static int bd_cdev_set_cur_brightness(struct thermal_cooling_device *cdev,
 	brightness_lvl = bd->props.max_brightness - state;
 	if (brightness_lvl == bd->thermal_brightness_limit)
 		return 0;
-	bd->thermal_brightness_limit = brightness_lvl;
 
+	bd->thermal_brightness_limit = brightness_lvl;
 #ifdef CONFIG_THERMAL_DIMMING
 	sysfs_notify(&cdev->device.kobj, NULL, "cur_state");
 	pr_info("thermal dimming:set thermal_brightness_limit to %d\n", bd->thermal_brightness_limit);
@@ -407,9 +415,9 @@ static int bd_cdev_set_cur_brightness(struct thermal_cooling_device *cdev,
 				<= bd->thermal_brightness_limit) ?
 				bd->usr_brightness_req :
 				bd->thermal_brightness_limit;
-
 	backlight_device_set_brightness(bd, brightness_lvl);
 #endif
+
 	return 0;
 }
 

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015-2020, The Linux Foundation. All rights reserved.
- * Copyright (C) 2021 XiaoMi, Inc.
  */
 
 #include <linux/module.h>
@@ -2786,6 +2785,7 @@ static int gsi_bind(struct usb_configuration *c, struct usb_function *f)
 		if (status < 0)
 			goto fail;
 	}
+
 	status = gsi->data_id = usb_interface_id(c, f);
 	if (status < 0)
 		goto fail;
@@ -2876,11 +2876,16 @@ static int gsi_bind(struct usb_configuration *c, struct usb_function *f)
 		 * Default to rndis over ethernet which loads NDIS6 drivers
 		 * for windows7/windows10 to avoid data stall issues
 		 */
-		if (cdev->isMSOS) {
+#ifdef CONFIG_MACH_XIAOMI_SM8250
+		if (cdev->isMSOS)
+#else
+		if (gsi->rndis_id == RNDIS_ID_UNKNOWN)
+#endif
 			gsi->rndis_id = MISC_RNDIS_OVER_ETHERNET;
-		} else {
+#ifdef CONFIG_MACH_XIAOMI_SM8250
+		else
 			gsi->rndis_id = WIRELESS_CONTROLLER_REMOTE_NDIS;
-		}
+#endif
 
 		switch (gsi->rndis_id) {
 		default:

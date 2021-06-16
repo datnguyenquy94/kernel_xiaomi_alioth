@@ -27,15 +27,17 @@ USERINCLUDE     += \
 # Needed to be compatible with the O= option
 LINUXINCLUDE    += \
                 -I$(srctree)/techpack/audio/include/uapi \
-                -I$(srctree)/techpack/audio/include/elliptic \
                 -I$(srctree)/techpack/audio/include
 
-#for mius start
+ifeq ($(CONFIG_MACH_XIAOMI_SM8250), y)
+LINUXINCLUDE    += \
+                -I$(srctree)/techpack/audio/include/elliptic \
+
 ifeq ($(CONFIG_US_PROXIMITY), y)
 LINUXINCLUDE    += \
                 -I$(srctree)/techpack/audio/include/mius
 endif
-#for mius end
+endif
 
 ifeq ($(CONFIG_ARCH_SDXPOORWILLS), y)
 LINUXINCLUDE    += \

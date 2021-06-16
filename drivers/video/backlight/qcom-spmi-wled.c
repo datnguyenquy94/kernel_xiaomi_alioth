@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015, Sony Mobile Communications, AB.
- * Copyright (C) 2021 XiaoMi, Inc.
  */
 /*
  * Copyright (c) 2018-2020, The Linux Foundation. All rights reserved.
@@ -403,6 +402,7 @@ static int wled5_set_brightness(struct wled *wled, u16 brightness)
 	int rc, offset;
 	u16 low_limit = wled->max_brightness * 1 / 1000;
 	u8 val, v[2], brightness_msb_mask;
+#ifdef CONFIG_MACH_XIAOMI_SM8250
 	static u32 prop_read;
 	static u32 cabc_disable;
 	static u32 cabc_off_dbv;
@@ -433,6 +433,7 @@ static int wled5_set_brightness(struct wled *wled, u16 brightness)
 		cabc_disable = 0;
 		pr_info("wled config to enable cabc\n");
 	}
+#endif
 
 	/* WLED5's lower limit is 0.1% */
 	if (brightness > 0 && brightness < low_limit)

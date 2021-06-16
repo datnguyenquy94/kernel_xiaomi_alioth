@@ -129,7 +129,6 @@ static int msm_notifier_probe(struct platform_device *pdev)
 
 	active_displays = devm_kzalloc(&pdev->dev,
 				sizeof(*active_displays), GFP_KERNEL);
-
 	if (!active_displays) {
 		ret = -ENOMEM;
 		goto end;
@@ -180,7 +179,6 @@ fail:
 	devm_kfree(&pdev->dev, active_displays);
 end:
 	devm_kfree(&pdev->dev, info);
-
 	return ret;
 }
 

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
- * Copyright (C) 2021 XiaoMi, Inc.
  */
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -51,8 +50,11 @@ enum adm_cal_status {
 	ADM_STATUS_MAX,
 };
 
+#ifdef CONFIG_MACH_XIAOMI_SM8250
 static bool is_usb_timeout;
 static bool close_usb;
+#endif
+
 struct adm_copp {
 
 	atomic_t id[AFE_MAX_PORTS][MAX_COPPS_PER_PORT];
@@ -1820,6 +1822,7 @@ static int32_t adm_callback(struct apr_client_data *data, void *priv)
 				   open->copp_id);
 			pr_debug("%s: coppid rxed=%d\n", __func__,
 				 open->copp_id);
+#ifdef CONFIG_MACH_XIAOMI_SM8250
 			if (is_usb_timeout && (IDX_AFE_PORT_ID_USB_RX == port_idx)) {
 				pr_debug("%s:usb port need be closed\n", __func__);
 				close_usb = true;
@@ -1828,6 +1831,7 @@ static int32_t adm_callback(struct apr_client_data *data, void *priv)
 				pr_debug("%s: enable usb port\n", __func__);
 				is_usb_timeout = false;
 			}
+#endif
 
 			wake_up(&this_adm.copp.wait[port_idx][copp_idx]);
 			}
@@ -3103,18 +3107,19 @@ int adm_open(int port_id, int path, int rate, int channel_mode, int topology,
 	int param_size;
 	int num_ec_ref_rx_chans = this_adm.num_ec_ref_rx_chans;
 
-	pr_err("%s:port %#x path:%d rate:%d channel_mode:%d perf_mode:%d topology 0x%x bit_width %d \
-		app_type %d acdb_id %d session_type %d passthr_mode %d \n",
-			__func__, port_id, path, rate, channel_mode, perf_mode,
-				topology, bit_width, app_type, acdb_id, session_type, passthr_mode);
+	pr_debug("%s:port %#x path:%d rate:%d mode:%d perf_mode:%d,topo_id %d\n",
+		 __func__, port_id, path, rate, channel_mode, perf_mode,
+		 topology);
 
 	port_id = q6audio_convert_virtual_to_portid(port_id);
 	port_idx = adm_validate_and_get_port_index(port_id);
 
+#ifdef CONFIG_MACH_XIAOMI_SM8250
 	if (is_usb_timeout && (AFE_PORT_ID_USB_RX == port_id)) {
 		pr_err("%s: USB RX timeout return\n", __func__);
 		return -EINVAL;
 	}
+#endif
 
 	if (port_idx < 0) {
 		pr_err("%s: Invalid port_id 0x%x\n", __func__, port_id);
@@ -3184,12 +3189,12 @@ int adm_open(int port_id, int path, int rate, int channel_mode, int topology,
 	}
 
 	if (topology == VPM_TX_VOICE_SMECNS_V2_COPP_TOPOLOGY ||
-	        topology == VPM_TX_VOICE_FLUENCE_SM_COPP_TOPOLOGY ||
+#ifdef CONFIG_MACH_XIAOMI_SM8250
 		topology == ADM_TOPOLOGY_ID_AUDIO_RX_FVSAM ||
-		topology == ADM_TOPOLOGY_ID_AUDIO_RX_MISE) {
-		pr_debug("%s: set channel_mode as 1 for topology=%d\n", __func__, topology);
+		topology == ADM_TOPOLOGY_ID_AUDIO_RX_MISE ||
+#endif
+	    topology == VPM_TX_VOICE_FLUENCE_SM_COPP_TOPOLOGY)
 		channel_mode = 1;
-	}
 
 	/*
 	 * Routing driver reuses the same adm for streams with the same
@@ -3500,9 +3505,11 @@ int adm_open(int port_id, int path, int rate, int channel_mode, int topology,
 		if (!ret) {
 			pr_err("%s: ADM open timedout for port_id: 0x%x for [0x%x]\n",
 						__func__, tmp_port, port_id);
+#ifdef CONFIG_MACH_XIAOMI_SM8250
 			if (AFE_PORT_ID_USB_RX == port_id) {
 				is_usb_timeout = true;
 			}
+#endif
 			return -EINVAL;
 		} else if (atomic_read(&this_adm.copp.stat
 					[port_idx][copp_idx]) > 0) {
@@ -3925,11 +3932,13 @@ int adm_close(int port_id, int perf_mode, int copp_idx)
 	int ret = 0, port_idx;
 	int copp_id = RESET_COPP_ID;
 
+#ifdef CONFIG_MACH_XIAOMI_SM8250
 	int usb_copp_id = RESET_COPP_ID;
 	int usb_copp_idx = 0;
 	struct apr_hdr usb_close;
+#endif
 
-	pr_err("%s: port_id=0x%x perf_mode: %d copp_idx: %d\n", __func__,
+	pr_debug("%s: port_id=0x%x perf_mode: %d copp_idx: %d\n", __func__,
 		 port_id, perf_mode, copp_idx);
 
 	port_id = q6audio_convert_virtual_to_portid(port_id);
@@ -3995,6 +4004,7 @@ int adm_close(int port_id, int perf_mode, int copp_idx)
 					ADM_MEM_MAP_INDEX_SOURCE_TRACKING], 0);
 		}
 
+#ifdef CONFIG_MACH_XIAOMI_SM8250
 		if (close_usb) {
 			for (usb_copp_idx = 0; usb_copp_idx < 8; usb_copp_idx++) {
 				usb_copp_id = adm_get_copp_id(IDX_AFE_PORT_ID_USB_RX, usb_copp_idx);
@@ -4044,6 +4054,7 @@ int adm_close(int port_id, int perf_mode, int copp_idx)
 				return 0;
 			}
 		}
+#endif
 
 		close.hdr_field = APR_HDR_FIELD(APR_MSG_TYPE_SEQ_CMD,
 						APR_HDR_LEN(APR_HDR_SIZE),
@@ -5684,8 +5695,10 @@ int __init adm_init(void)
 	this_adm.sourceTrackingData.memmap.kvaddr = NULL;
 	this_adm.sourceTrackingData.memmap.paddr = 0;
 	this_adm.sourceTrackingData.apr_cmd_status = -1;
+#ifdef CONFIG_MACH_XIAOMI_SM8250
 	is_usb_timeout = false;
 	close_usb = false;
+#endif
 
 	return 0;
 }

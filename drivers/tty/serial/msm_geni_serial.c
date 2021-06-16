@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2020, The Linux Foundation. All rights reserved.
- * Copyright (C) 2021 XiaoMi, Inc.
  */
 
 #include <linux/bitmap.h>
@@ -2061,8 +2060,10 @@ static void msm_geni_serial_shutdown(struct uart_port *uport)
 		msm_geni_serial_stop_tx(uport);
 	}
 
+#ifdef CONFIG_MACH_XIAOMI_SM8250
 	if (likely(!uart_console(uport)))
 		disable_irq(uport->irq);
+#endif
 
 	if (!uart_console(uport)) {
 		if (msm_port->ioctl_count) {
@@ -2207,8 +2208,11 @@ static int msm_geni_serial_startup(struct uart_port *uport)
 		}
 	}
 
+#ifdef CONFIG_MACH_XIAOMI_SM8250
 	if (likely(!uart_console(uport)))
 		enable_irq(uport->irq);
+#endif
+
 	/*
 	 * Ensure that all the port configuration writes complete
 	 * before returning to the framework.
@@ -3241,6 +3245,8 @@ static int msm_geni_serial_probe(struct platform_device *pdev)
 	irq_set_status_flags(uport->irq, IRQ_NOAUTOEN);
 	ret = devm_request_irq(uport->dev, uport->irq, msm_geni_serial_isr,
 				IRQF_TRIGGER_HIGH, dev_port->name, uport);
+
+#ifdef CONFIG_MACH_XIAOMI_SM8250
 	if(likely(!uart_console(uport))) {
 		/*
 		 * irq should disable untill msm_geni_serial_port_setup
@@ -3248,6 +3254,8 @@ static int msm_geni_serial_probe(struct platform_device *pdev)
 		 */
 		disable_irq(uport->irq);
 	}
+#endif
+
 	if (ret) {
 		dev_err(uport->dev, "%s: Failed to get IRQ ret %d\n",
 							__func__, ret);

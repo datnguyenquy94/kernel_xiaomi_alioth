@@ -19,19 +19,18 @@
 #include <dsp/q6common.h>
 #include <dsp/q6core.h>
 #include <dsp/msm-audio-event-notify.h>
-#include <dsp/apr_elliptic.h>
 #include <ipc/apr_tal.h>
-/* for mius start */
+#include "adsp_err.h"
+#include "q6afecal-hwdep.h"
+#ifdef CONFIG_MACH_XIAOMI_SM8250
+#include <dsp/apr_elliptic.h>
+#endif
 #ifdef CONFIG_US_PROXIMITY
 #include <dsp/apr_mius.h>
 #endif
-/* for mius end */
-#include "adsp_err.h"
-#include "q6afecal-hwdep.h"
-#ifdef TFA_ADSP_SUPPORTED
+#ifdef CONFIG_MACH_XIAOMI_LMI
 #include "../asoc/codecs/tfa98xx/inc/tfa_platform_interface_definition.h"
 #endif
-
 #ifdef CONFIG_MSM_CSPL
 #include <dsp/msm-cirrus-playback.h>
 #endif
@@ -255,10 +254,10 @@ struct afe_ctl {
 	u32 island_mode[AFE_MAX_PORTS];
 	struct vad_config vad_cfg[AFE_MAX_PORTS];
 	struct work_struct afe_dc_work;
-#ifdef TFA_ADSP_SUPPORTED
+#ifdef CONFIG_MACH_XIAOMI_LMI
 	struct rtac_cal_block_data tfa_cal;
 	atomic_t tfa_state;
-#endif /* TFA_ADSP_SUPPORTED */
+#endif
 	struct notifier_block event_notifier;
 	/* FTM spk params */
 	uint32_t initial_cal;
@@ -397,11 +396,13 @@ static int q6afe_load_avcs_modules(int num_modules, u16 port_id,
 					goto load_unload;
 				}
 
+#ifdef CONFIG_MACH_XIAOMI_SM8250
 				if (format_id == ENC_CODEC_TYPE_LHDC) {
 					pm[i]->payload->load_unload_info[0].id1 =
 						AVS_MODULE_ID_DEPACKETIZER_COP_V1;
 					goto load_unload;
 				}
+#endif
 
 				pm[i]->payload->load_unload_info[1].module_type =
 						AMDB_MODULE_TYPE_DECODER;
@@ -455,6 +456,7 @@ struct afe_cspl_state cspl_afe = {
 };
 EXPORT_SYMBOL(cspl_afe);
 #endif
+
 int afe_get_spk_initial_cal(void)
 {
 	return this_afe.initial_cal;
@@ -939,6 +941,7 @@ static int32_t afe_callback(struct apr_client_data *data, void *priv)
 		uint32_t *payload = data->payload;
 		uint32_t param_id;
 		uint32_t param_id_pos = 0;
+
 #ifdef CONFIG_MSM_CSPL
 		if (crus_afe_callback(data->payload, data->payload_size) == 0)
 			return 0;
@@ -954,10 +957,10 @@ static int32_t afe_callback(struct apr_client_data *data, void *priv)
 		if (rtac_make_afe_callback(data->payload,
 					   data->payload_size))
 			return 0;
-#ifdef TFA_ADSP_SUPPORTED
+
+#ifdef CONFIG_MACH_XIAOMI_LMI
 		if (atomic_read(&this_afe.tfa_state) == 1 &&
 			data->payload_size == sizeof(uint32_t)) {
-
 			atomic_set(&this_afe.status, payload[0]);
 			if (payload[0])
 				atomic_set(&this_afe.state, -1);
@@ -969,7 +972,8 @@ static int32_t afe_callback(struct apr_client_data *data, void *priv)
 
 			return 0;
 		}
-#endif /* TFA_ADSP_SUPPORTED */
+#endif
+
 		if (data->opcode == AFE_PORT_CMDRSP_GET_PARAM_V3)
 			param_id_pos = 4;
 		else
@@ -998,7 +1002,6 @@ static int32_t afe_callback(struct apr_client_data *data, void *priv)
 			wake_up(&this_afe.wait[data->token]);
 		else
 			return -EINVAL;
-/* for mius start */
 #ifdef CONFIG_US_PROXIMITY
 	} else if (data->opcode == MI_ULTRASOUND_OPCODE) {
 		if (NULL != data->payload) {
@@ -1007,7 +1010,6 @@ static int32_t afe_callback(struct apr_client_data *data, void *priv)
 		} else
 			pr_err("[EXPORT_SYMBOLLUS]: payload ptr is Invalid");
 #endif
-/* for mius end */
 	} else if (data->opcode == AFE_EVENT_MBHC_DETECTION_SW_WA) {
 		msm_aud_evt_notifier_call_chain(SWR_WAKE_IRQ_EVENT, NULL);
 	} else if (data->opcode ==
@@ -1022,11 +1024,13 @@ static int32_t afe_callback(struct apr_client_data *data, void *priv)
 		atomic_set(&this_afe.clk_state, 0);
 		atomic_set(&this_afe.clk_status, 0);
 		wake_up(&this_afe.lpass_core_hw_wait);
+#ifdef CONFIG_MACH_XIAOMI_SM8250
 	} else if (data->opcode == ULTRASOUND_OPCODE) {
 		if (NULL != data->payload)
 			elliptic_process_apr_payload(data->payload);
 		else
 			pr_err("[EXPORT_SYMBOLLUS]: payload ptr is Invalid");
+#endif
 	} else if (data->payload_size) {
 		uint32_t *payload;
 		uint16_t port_id = 0;
@@ -1521,6 +1525,7 @@ int afe_apr_send_pkt_crus(void *data, int index, int set)
 
 EXPORT_SYMBOL(afe_apr_send_pkt_crus);
 #endif
+
 /* This function shouldn't be called directly. Instead call q6afe_set_params. */
 static int q6afe_set_params_v2(u16 port_id, int index,
 			       struct mem_mapping_hdr *mem_hdr,
@@ -2303,7 +2308,7 @@ static int afe_spk_prot_prepare(int src_port, int dst_port, int param_id,
 	case AFE_PARAM_ID_SP_V2_EX_VI_FTM_CFG:
 		param_info.module_id = AFE_MODULE_SPEAKER_PROTECTION_V2_EX_VI;
 		break;
-#ifdef TFA_ADSP_SUPPORTED
+#ifdef CONFIG_MACH_XIAOMI_LMI
 	case AFE_PARAM_ID_TFADSP_RX_CFG:
 	case AFE_PARAM_ID_TFADSP_RX_SET_BYPASS:
 		param_info.module_id = AFE_MODULE_ID_TFADSP_RX;
@@ -2311,7 +2316,7 @@ static int afe_spk_prot_prepare(int src_port, int dst_port, int param_id,
 	case AFE_PARAM_ID_TFADSP_TX_SET_ENABLE:
 		param_info.module_id = AFE_MODULE_ID_TFADSP_TX;
 		break;
-#endif	/* TFA_ADSP_SUPPORTED */
+#endif
 	case AFE_PARAM_ID_SP_V4_VI_CHANNEL_MAP_CFG:
 	case AFE_PARAM_ID_SP_V4_VI_OP_MODE_CFG:
 	case AFE_PARAM_ID_SP_V4_VI_R0T0_CFG:
@@ -2389,6 +2394,7 @@ fail_idx:
 	return ret;
 }
 
+#ifdef CONFIG_MACH_XIAOMI_SM8250
 afe_ultrasound_state_t elus_afe = {
 	.ptr_apr= &this_afe.apr,
 	.ptr_status= &this_afe.status,
@@ -2397,8 +2403,8 @@ afe_ultrasound_state_t elus_afe = {
 	.timeout_ms= TIMEOUT_MS,
 };
 EXPORT_SYMBOL(elus_afe);
+#endif
 
-/* for mius start */
 #ifdef CONFIG_US_PROXIMITY
 afe_mi_ultrasound_state_t mius_afe = {
 	.ptr_apr = &this_afe.apr,
@@ -2409,7 +2415,7 @@ afe_mi_ultrasound_state_t mius_afe = {
 };
 EXPORT_SYMBOL(mius_afe);
 #endif
-/* for mius end */
+
 static void afe_send_cal_spv4_tx(int port_id)
 {
 	union afe_spkr_prot_config afe_spk_config;
@@ -3066,12 +3072,16 @@ static int afe_send_port_topology_id(u16 port_id)
 
 	ret = afe_get_cal_topology_id(port_id, &topology_id, AFE_TOPOLOGY_CAL);
 	if (ret < 0) {
-		if (port_id >= AFE_PORT_ID_VA_CODEC_DMA_TX_0 && port_id <= AFE_PORT_ID_VA_CODEC_DMA_TX_2) {
-			pr_info("%s: Check for LSM topology\n", __func__);
-			ret = afe_get_cal_topology_id(port_id, &topology_id,
-							AFE_LSM_TOPOLOGY_CAL);
-		}
+#ifdef CONFIG_MACH_XIAOMI_SM8250
+	if (port_id >= AFE_PORT_ID_VA_CODEC_DMA_TX_0 && port_id <= AFE_PORT_ID_VA_CODEC_DMA_TX_2) {
+#endif
+		pr_debug("%s: Check for LSM topology\n", __func__);
+		ret = afe_get_cal_topology_id(port_id, &topology_id,
+					      AFE_LSM_TOPOLOGY_CAL);
 	}
+#ifdef CONFIG_MACH_XIAOMI_SM8250
+	}
+#endif
 	if (ret || !topology_id) {
 		pr_debug("%s: AFE port[%d] get_cal_topology[%d] invalid!\n",
 				__func__, port_id, topology_id);
@@ -4941,7 +4951,9 @@ static int q6afe_send_enc_config(u16 port_id,
 	if (format != ASM_MEDIA_FMT_SBC && format != ASM_MEDIA_FMT_AAC_V2 &&
 		format != ASM_MEDIA_FMT_APTX && format != ASM_MEDIA_FMT_APTX_HD &&
 		format != ASM_MEDIA_FMT_CELT && format != ASM_MEDIA_FMT_LDAC &&
+#ifdef CONFIG_MACH_XIAOMI_SM8250
 		format != ASM_MEDIA_FMT_LHDC &&
+#endif
 		format != ASM_MEDIA_FMT_APTX_ADAPTIVE &&
 		format != ASM_MEDIA_FMT_APTX_AD_SPEECH) {
 		pr_err("%s:Unsuppported enc format. Ignore AFE config\n",
@@ -5155,8 +5167,10 @@ static int q6afe_send_enc_config(u16 port_id,
 
 	if ((format == ASM_MEDIA_FMT_LDAC &&
 	     cfg->ldac_config.abr_config.is_abr_enabled) ||
+#ifdef CONFIG_MACH_XIAOMI_SM8250
 	     (format == ASM_MEDIA_FMT_LHDC &&
 	     cfg->lhdc_config.abr_config.is_abr_enabled) ||
+#endif
 	     format == ASM_MEDIA_FMT_APTX_ADAPTIVE ||
 	     format == ASM_MEDIA_FMT_APTX_AD_SPEECH) {
 		if (format != ASM_MEDIA_FMT_APTX_AD_SPEECH) {
@@ -5165,12 +5179,12 @@ static int q6afe_send_enc_config(u16 port_id,
 			param_hdr.param_id = AFE_ENCODER_PARAM_ID_BIT_RATE_LEVEL_MAP;
 			param_hdr.param_size =
 				sizeof(struct afe_enc_level_to_bitrate_map_param_t);
-			if (format == ASM_MEDIA_FMT_LHDC)
-				map_param.mapping_table =
-					cfg->lhdc_config.abr_config.mapping_info;
-			else
-				map_param.mapping_table =
-					cfg->ldac_config.abr_config.mapping_info;
+			map_param.mapping_table =
+#ifdef CONFIG_MACH_XIAOMI_SM8250
+				(format == ASM_MEDIA_FMT_LHDC) ?
+				cfg->lhdc_config.abr_config.mapping_info :
+#endif
+				cfg->ldac_config.abr_config.mapping_info;
 			ret = q6afe_pack_and_set_param_in_band(port_id,
 							q6audio_get_port_index(port_id),
 							param_hdr,
@@ -5194,9 +5208,11 @@ static int q6afe_send_enc_config(u16 port_id,
 		else if (format == ASM_MEDIA_FMT_APTX_AD_SPEECH)
 			imc_info_param.imc_info =
 			cfg->aptx_ad_speech_config.imc_info;
+#ifdef CONFIG_MACH_XIAOMI_SM8250
 		else if (format == ASM_MEDIA_FMT_LHDC)
 			imc_info_param.imc_info =
 			cfg->lhdc_config.abr_config.imc_info;
+#endif
 		else
 			imc_info_param.imc_info =
 			cfg->ldac_config.abr_config.imc_info;
@@ -5219,9 +5235,11 @@ static int q6afe_send_enc_config(u16 port_id,
 	if (format == ASM_MEDIA_FMT_LDAC)
 		media_type.sample_rate =
 			cfg->ldac_config.custom_config.sample_rate;
+#ifdef CONFIG_MACH_XIAOMI_SM8250
 	else if (format == ASM_MEDIA_FMT_LHDC)
 		media_type.sample_rate =
 			cfg->lhdc_config.custom_config.sample_rate;
+#endif
 	else if (format == ASM_MEDIA_FMT_APTX_ADAPTIVE)
 		media_type.sample_rate =
 			cfg->aptx_ad_config.custom_cfg.sample_rate;
@@ -5649,7 +5667,9 @@ static int __afe_port_start(u16 port_id, union afe_port_config *afe_config,
 				 * Only loading de-packetizer module.
 				 */
 				if (codec_format == ENC_CODEC_TYPE_LDAC ||
+#ifdef CONFIG_MACH_XIAOMI_SM8250
 				    codec_format == ENC_CODEC_TYPE_LHDC ||
+#endif
 					codec_format == ASM_MEDIA_FMT_APTX_ADAPTIVE)
 					ret = q6afe_load_avcs_modules(1, port_id,
 						DECODER_CASE, codec_format);
@@ -10711,7 +10731,7 @@ static void afe_release_uevent_data(struct kobject *kobj)
 	kfree(data);
 }
 
-#ifdef TFA_ADSP_SUPPORTED
+#ifdef CONFIG_MACH_XIAOMI_LMI
 int send_tfa_cal_apr(void *buf, int cmd_size, bool bRead)
 {
 	int32_t result, port_id = AFE_PORT_ID_TFADSP_RX;
@@ -10915,7 +10935,7 @@ int send_tfa_cal_set_tx_enable(void *buf, int cmd_size)
 	return 0;
 }
 EXPORT_SYMBOL(send_tfa_cal_set_tx_enable);
-#endif /* TFA_ADSP_SUPPORTED */
+#endif
 
 int __init afe_init(void)
 {
@@ -10984,9 +11004,9 @@ int __init afe_init(void)
 
 void afe_exit(void)
 {
-#ifdef TFA_ADSP_SUPPORTED
+#ifdef CONFIG_MACH_XIAOMI_LMI
 	afe_unmap_rtac_block(&this_afe.tfa_cal.map_data.map_handle);
-#endif /* TFA_ADSP_SUPPORTED */
+#endif
 
 	if (this_afe.apr) {
 		apr_reset(this_afe.apr);

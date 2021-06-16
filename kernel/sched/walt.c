@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2020, The Linux Foundation. All rights reserved.
- * Copyright (C) 2021 XiaoMi, Inc.
  */
 
 #include <linux/syscore_ops.h>
@@ -3457,6 +3456,7 @@ void walt_irq_work(struct irq_work *irq_work)
 	 */
 	if (!is_migration) {
 		spin_lock_irqsave(&sched_ravg_window_lock, flags);
+
 		if (sched_ravg_window != new_sched_ravg_window) {
 			sched_ravg_window_change_time = sched_ktime_clock();
 			printk_deferred("ALERT: changing window size from %u to %u at %lu\n",

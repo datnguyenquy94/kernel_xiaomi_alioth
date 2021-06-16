@@ -3,7 +3,6 @@
 // soc-pcm.c  --  ALSA SoC PCM
 //
 // Copyright 2005 Wolfson Microelectronics PLC.
-// Copyright (C) 2021 XiaoMi, Inc.
 // Copyright 2005 Openedhand Ltd.
 // Copyright (C) 2010 Slimlogic Ltd.
 // Copyright (C) 2010 Texas Instruments Inc.
@@ -41,8 +40,10 @@ static const struct snd_pcm_hardware no_host_hardware = {
 				  SNDRV_PCM_INFO_PAUSE |
 				  SNDRV_PCM_INFO_RESUME,
 	.formats		= SNDRV_PCM_FMTBIT_S16_LE |
+#ifdef CONFIG_MACH_XIAOMI_SM8250
 				  SNDRV_PCM_FMTBIT_S24_LE |
 				  SNDRV_PCM_FMTBIT_S24_3LE |
+#endif
 				  SNDRV_PCM_FMTBIT_S32_LE,
 	.period_bytes_min	= PAGE_SIZE >> 2,
 	.period_bytes_max	= PAGE_SIZE >> 1,

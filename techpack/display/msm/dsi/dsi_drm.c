@@ -339,7 +339,6 @@ static void dsi_bridge_enable(struct drm_bridge *bridge)
 			sde_connector_schedule_status_work(display->drm_conn,
 				true);
 	}
-
 }
 
 static void dsi_bridge_disable(struct drm_bridge *bridge)

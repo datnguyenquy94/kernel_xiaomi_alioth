@@ -3,7 +3,6 @@
  * USB Type-C Connector Class
  *
  * Copyright (C) 2017, Intel Corporation
- * Copyright (C) 2021 XiaoMi, Inc.
  * Author: Heikki Krogerus <heikki.krogerus@linux.intel.com>
  */
 
@@ -1382,9 +1381,10 @@ void typec_set_pwr_opmode(struct typec_port *port,
 	if (port->pwr_opmode == opmode)
 		return;
 
-	pr_err("%s pwr opmode:%d\n", __func__, opmode);
+#ifdef CONFIG_MACH_XIAOMI_SM8250
 	if (opmode > TYPEC_PWR_MODE_PD)
 		return;
+#endif
 
 	port->pwr_opmode = opmode;
 	sysfs_notify(&port->dev.kobj, NULL, "power_operation_mode");

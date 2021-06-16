@@ -1811,7 +1811,6 @@ static int compare_of(struct device *dev, void *data)
 	return dev->of_node == data;
 }
 
-
 /*
  * Identify what components need to be added by parsing what remote-endpoints
  * our MDP output ports are connected to. In the case of LVDS on MDP4, there

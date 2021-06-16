@@ -544,17 +544,18 @@ static int dsi_panel_power_off(struct dsi_panel *panel)
 		if(!panel->mi_cfg.tddi_doubleclick_flag || panel->mi_cfg.panel_dead_flag) {
 			rc = dsi_pwr_enable_regulator(&panel->power_info, false);
 			if (rc)
-				pr_err("[%s] failed to enable vregs, rc=%d\n", panel->name, rc);
+				DSI_ERR("[%s] failed to enable vregs, rc=%d\n",
+						panel->name, rc);
 		}
 	} else {
 		rc = dsi_pwr_enable_regulator(&panel->power_info, false);
 		if (rc)
-			pr_err("[%s] failed to enable vregs, rc=%d\n", panel->name, rc);
+			DSI_ERR("[%s] failed to enable vregs, rc=%d\n",
+					panel->name, rc);
 	}
 
 	return rc;
 }
-
 int dsi_panel_tx_cmd_set(struct dsi_panel *panel,
 				enum dsi_cmd_set_type type)
 {
@@ -3455,7 +3456,6 @@ static int dsi_panel_parse_esd_config(struct dsi_panel *panel)
 
 	esd_config = &panel->esd_config;
 	esd_config->status_mode = ESD_MODE_MAX;
-
 	esd_config->esd_enabled = utils->read_bool(utils->data,
 		"qcom,esd-check-enabled");
 
@@ -4263,7 +4263,6 @@ int dsi_panel_set_lp1(struct dsi_panel *panel)
 	if (rc)
 		DSI_ERR("[%s] failed to send DSI_CMD_SET_LP1 cmd, rc=%d\n",
 		       panel->name, rc);
-
 exit:
 	mutex_unlock(&panel->panel_lock);
 	display_utc_time_marker("DSI_CMD_SET_LP1");
@@ -4290,7 +4289,6 @@ int dsi_panel_set_lp2(struct dsi_panel *panel)
 	if (rc)
 		DSI_ERR("[%s] failed to send DSI_CMD_SET_LP2 cmd, rc=%d\n",
 		       panel->name, rc);
-
 exit:
 	mutex_unlock(&panel->panel_lock);
 	display_utc_time_marker("DSI_CMD_SET_LP2");
@@ -4332,7 +4330,7 @@ int dsi_panel_set_nolp(struct dsi_panel *panel)
 	rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_NOLP);
 	if (rc)
 		DSI_ERR("[%s] failed to send DSI_CMD_SET_NOLP cmd, rc=%d\n",
-			panel->name, rc);
+		       panel->name, rc);
 
 	mi_cfg->dimming_state = STATE_DIM_RESTORE;
 
@@ -4380,7 +4378,8 @@ int dsi_panel_prepare(struct dsi_panel *panel)
 	if (panel->lp11_init) {
 		rc = dsi_panel_reset(panel);
 		if (rc) {
-			pr_err("[%s] failed to reset panel, rc=%d\n", panel->name, rc);
+			DSI_ERR("[%s] failed to reset panel, rc=%d\n",
+			       panel->name, rc);
 			goto error;
 		}
 	}
@@ -4729,9 +4728,8 @@ int dsi_panel_enable(struct dsi_panel *panel)
 	if (rc)
 		DSI_ERR("[%s] failed to send DSI_CMD_SET_ON cmds, rc=%d\n",
 		       panel->name, rc);
-	else {
+	else
 		panel->panel_initialized = true;
-	}
 
 	if (mi_cfg->gamma_update_flag) {
 		if (mi_cfg->gamma_cfg.update_done_60hz &&
@@ -5027,7 +5025,7 @@ int dsi_panel_post_unprepare(struct dsi_panel *panel)
 	rc = dsi_panel_power_off(panel);
 	if (rc) {
 		DSI_ERR("[%s] panel power_Off failed, rc=%d\n",
-			panel->name, rc);
+		       panel->name, rc);
 		goto error;
 	}
 error:

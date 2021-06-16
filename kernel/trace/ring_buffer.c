@@ -3,7 +3,6 @@
  * Generic ring buffer
  *
  * Copyright (C) 2008 Steven Rostedt <srostedt@redhat.com>
- * Copyright (C) 2021 XiaoMi, Inc.
  */
 #include <linux/trace_events.h>
 #include <linux/ring_buffer.h>
@@ -4361,7 +4360,6 @@ void ring_buffer_reset_cpu(struct ring_buffer *buffer, int cpu)
 	if (!cpumask_test_cpu(cpu, buffer->cpumask))
 		return;
 
-	mutex_lock(&buffer->mutex);
 	atomic_inc(&buffer->resize_disabled);
 	atomic_inc(&cpu_buffer->record_disabled);
 
@@ -4384,7 +4382,6 @@ void ring_buffer_reset_cpu(struct ring_buffer *buffer, int cpu)
 
 	atomic_dec(&cpu_buffer->record_disabled);
 	atomic_dec(&buffer->resize_disabled);
-	mutex_unlock(&buffer->mutex);
 }
 EXPORT_SYMBOL_GPL(ring_buffer_reset_cpu);
 

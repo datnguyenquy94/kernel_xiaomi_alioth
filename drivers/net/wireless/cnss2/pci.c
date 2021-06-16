@@ -366,8 +366,7 @@ int cnss_pci_check_link_status(struct cnss_pci_data *pci_priv)
 	u16 device_id;
 
 	if (pci_priv->pci_link_state == PCI_LINK_DOWN) {
-		cnss_pr_dbg("%ps: PCIe link is in suspend state\n",
-			    (void *)_RET_IP_);
+		cnss_pr_dbg("PCIe link is suspended\n");
 		return -EIO;
 	}
 
@@ -821,7 +820,7 @@ int cnss_pci_prevent_l1(struct device *dev)
 	}
 
 	if (pci_priv->pci_link_state == PCI_LINK_DOWN) {
-		cnss_pr_dbg("PCIe link is in suspend state\n");
+		cnss_pr_dbg("PCIe link is suspended\n");
 		return -EIO;
 	}
 
@@ -845,7 +844,7 @@ void cnss_pci_allow_l1(struct device *dev)
 	}
 
 	if (pci_priv->pci_link_state == PCI_LINK_DOWN) {
-		cnss_pr_dbg("PCIe link is in suspend state\n");
+		cnss_pr_dbg("PCIe link is suspended\n");
 		return;
 	}
 
@@ -858,12 +857,19 @@ void cnss_pci_allow_l1(struct device *dev)
 }
 EXPORT_SYMBOL(cnss_pci_allow_l1);
 
-static void cnss_pci_handle_linkdown(struct cnss_pci_data *pci_priv)
+int cnss_pci_link_down(struct device *dev)
 {
-	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
-	struct pci_dev *pci_dev = pci_priv->pci_dev;
 	unsigned long flags;
+	struct pci_dev *pci_dev = to_pci_dev(dev);
+	struct cnss_pci_data *pci_priv = cnss_get_pci_priv(pci_dev);
+	struct cnss_plat_data *plat_priv;
 
+	if (!pci_priv) {
+		cnss_pr_err("pci_priv is NULL\n");
+		return -EINVAL;
+	}
+
+	plat_priv = pci_priv->plat_priv;
 	if (test_bit(ENABLE_PCI_LINK_DOWN_PANIC,
 		     &plat_priv->ctrl_params.quirks))
 		panic("cnss: PCI link is down\n");
@@ -872,40 +878,17 @@ static void cnss_pci_handle_linkdown(struct cnss_pci_data *pci_priv)
 	if (pci_priv->pci_link_down_ind) {
 		cnss_pr_dbg("PCI link down recovery is in progress, ignore\n");
 		spin_unlock_irqrestore(&pci_link_down_lock, flags);
-		return;
+		return -EINVAL;
 	}
 	pci_priv->pci_link_down_ind = true;
 	spin_unlock_irqrestore(&pci_link_down_lock, flags);
 
 	reinit_completion(&pci_priv->wake_event);
+	cnss_pr_err("PCI link down is detected, schedule recovery\n");
 
-	if (pci_dev->device == QCA6174_DEVICE_ID)
-		disable_irq(pci_dev->irq);
+	cnss_schedule_recovery(dev, CNSS_REASON_LINK_DOWN);
 
-	cnss_fatal_err("PCI link down, schedule recovery\n");
-	cnss_schedule_recovery(&pci_dev->dev, CNSS_REASON_LINK_DOWN);
-}
-
-int cnss_pci_link_down(struct device *dev)
-{
-	struct pci_dev *pci_dev = to_pci_dev(dev);
-	struct cnss_pci_data *pci_priv = cnss_get_pci_priv(pci_dev);
-	int ret;
-
-	if (!pci_priv) {
-		cnss_pr_err("pci_priv is NULL\n");
-		return -EINVAL;
-	}
-
-	cnss_pr_err("PCI link down is detected by drivers\n");
-
-	ret = msm_pcie_pm_control(MSM_PCIE_HANDLE_LINKDOWN,
-				  pci_dev->bus->number, pci_dev, NULL,
-				  PM_OPTIONS_DEFAULT);
-	if (ret)
-		cnss_pci_handle_linkdown(pci_priv);
-
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL(cnss_pci_link_down);
 
@@ -2432,8 +2415,10 @@ static bool cnss_pci_is_drv_supported(struct cnss_pci_data *pci_priv)
 
 static void cnss_pci_event_cb(struct msm_pcie_notify *notify)
 {
+	unsigned long flags;
 	struct pci_dev *pci_dev;
 	struct cnss_pci_data *pci_priv;
+	struct cnss_plat_data *plat_priv;
 
 	if (!notify)
 		return;
@@ -2446,10 +2431,27 @@ static void cnss_pci_event_cb(struct msm_pcie_notify *notify)
 	if (!pci_priv)
 		return;
 
+	plat_priv = pci_priv->plat_priv;
 	switch (notify->event) {
 	case MSM_PCIE_EVENT_LINKDOWN:
-		cnss_pr_dbg("PCI link down event callback\n");
-		cnss_pci_handle_linkdown(pci_priv);
+		if (test_bit(ENABLE_PCI_LINK_DOWN_PANIC,
+			     &plat_priv->ctrl_params.quirks))
+			panic("cnss: PCI link is down\n");
+
+		spin_lock_irqsave(&pci_link_down_lock, flags);
+		if (pci_priv->pci_link_down_ind) {
+			cnss_pr_dbg("PCI link down recovery is in progress, ignore\n");
+			spin_unlock_irqrestore(&pci_link_down_lock, flags);
+			return;
+		}
+		pci_priv->pci_link_down_ind = true;
+		spin_unlock_irqrestore(&pci_link_down_lock, flags);
+
+		reinit_completion(&pci_priv->wake_event);
+		cnss_fatal_err("PCI link down, schedule recovery\n");
+		if (pci_dev->device == QCA6174_DEVICE_ID)
+			disable_irq(pci_dev->irq);
+		cnss_schedule_recovery(&pci_dev->dev, CNSS_REASON_LINK_DOWN);
 		break;
 	case MSM_PCIE_EVENT_WAKEUP:
 		complete(&pci_priv->wake_event);

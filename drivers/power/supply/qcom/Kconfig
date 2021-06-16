@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-only
+
 menu "Qualcomm Technologies, Inc. Charger and Fuel Gauge support"
 
 config QPNP_SMB2
@@ -170,7 +171,6 @@ config RX1619_REMOVE
 	help
 	 J2S special modify
 
-
 config IDT_P9415
 	tristate "idtp9415 wireless Charger"
 	depends on I2C
@@ -191,13 +191,6 @@ config RX1619_TRIM
 	  The driver supports charger enable/disable.
 	  The driver reports the charger status via the power supply framework.
 	  The driver controls rx1619 via I2C and
-	  supports device-tree interface.
-
-config RX_ON_URD
-	tristate "RX chip on urd device"
-	depends on I2C
-	help
-	  Say Y to include support for rx wireless Charger on URD.
 	  supports device-tree interface.
 
 config RX1619

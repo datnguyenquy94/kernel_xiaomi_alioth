@@ -25,6 +25,8 @@
  * as published by the Free Software Foundation.
  */
 
+#define FPC_DRM_INTERFACE_WA
+
 #define CONFIG_FINGERPRINT_FP_VREG_CONTROL
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -43,6 +45,7 @@
 #include <linux/fb.h>
 #include <linux/pinctrl/qcom-pinctrl.h>
 #include <drm/drm_bridge.h>
+//#include <asm/hwconf_manager.h>
 
 #define FPC_GPIO_NO_DEFAULT -1
 #define FPC_GPIO_NO_DEFINED -2
@@ -644,7 +647,7 @@ static ssize_t device_prepare_set(struct device *dev,
 
 	if (!strncmp(buf, "enable", strlen("enable")))
 		rc = device_prepare(fpc1020, true);
-	else if (!strncmp(buf, "disable", strlen("disable")))
+        else if (!strncmp(buf, "disable", strlen("disable")))
 		rc = device_prepare(fpc1020, false);
 	else
 		return -EINVAL;
@@ -666,13 +669,11 @@ static ssize_t wakeup_enable_set(struct device *dev,
 	ssize_t ret = count;
 
 	mutex_lock(&fpc1020->lock);
-	// Yeah fingerprint dies if i don't lock like wtf?
 	mutex_unlock(&fpc1020->lock);
 
 	return ret;
 }
 
-static DEVICE_ATTR(power_cfg, S_IWUSR, NULL, wakeup_enable_set);
 static DEVICE_ATTR(wakeup_enable, S_IWUSR, NULL, wakeup_enable_set);
 
 /**
@@ -803,7 +804,6 @@ static struct attribute *attributes[] = {
 	&dev_attr_handle_wakelock.attr,
 	&dev_attr_clk_enable.attr,
 	&dev_attr_irq_enable.attr,
-	&dev_attr_power_cfg.attr,
 	&dev_attr_irq.attr,
 	&dev_attr_vendor.attr,
 	&dev_attr_fingerdown_wait.attr,
@@ -814,6 +814,7 @@ static const struct attribute_group attribute_group = {
 	.attrs = attributes,
 };
 
+
 static irqreturn_t fpc1020_irq_handler(int irq, void *handle)
 {
 	struct fpc1020_data *fpc1020 = handle;
@@ -821,12 +822,10 @@ static irqreturn_t fpc1020_irq_handler(int irq, void *handle)
 	dev_dbg(fpc1020->dev, "%s\n", __func__);
 
 	mutex_lock(&fpc1020->lock);
-
 	if (atomic_read(&fpc1020->wakeup_enabled)) {
 		fpc1020->nbr_irqs_received++;
 		__pm_wakeup_event(fpc1020->ttw_wl, (FPC_TTW_HOLD_TIME));
 	}
-
 	mutex_unlock(&fpc1020->lock);
 
 	sysfs_notify(&fpc1020->dev->kobj, NULL, dev_attr_irq.attr.name);
@@ -867,6 +866,7 @@ static int fpc1020_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int rc = 0;
 	size_t i;
+
 	struct device_node *np = dev->of_node;
 	struct fpc1020_data *fpc1020 = devm_kzalloc(dev, sizeof(*fpc1020),
 						    GFP_KERNEL);
@@ -922,8 +922,14 @@ static int fpc1020_probe(struct platform_device *pdev)
 	fpc1020->irq_requested = false;
 	fpc1020->gpios_requested = false;
 	device_init_wakeup(dev, 1);
-
+/*
+	if (of_property_read_bool(dev->of_node, "fpc,enable-wakeup")) {
+		irqf |= IRQF_NO_SUSPEND;
+		device_init_wakeup(dev, 1);
+	}
+*/
 	mutex_init(&fpc1020->lock);
+
 	fpc1020->ttw_wl = wakeup_source_register(dev, "fpc_ttw_wl");
 	if (!fpc1020->ttw_wl)
 		return -ENOMEM;
@@ -964,6 +970,7 @@ exit:
 static int fpc1020_remove(struct platform_device *pdev)
 {
 	struct fpc1020_data *fpc1020 = platform_get_drvdata(pdev);
+
 	sysfs_remove_group(&pdev->dev.kobj, &attribute_group);
 	mutex_destroy(&fpc1020->lock);
 	wakeup_source_unregister(fpc1020->ttw_wl);
