@@ -336,6 +336,7 @@ static void nav_event_input(struct gf_dev *gf_dev, gf_nav_event_t nav_event)
 	}
 }
 
+<<<<<<< HEAD
 static void gf_kernel_key_input(struct gf_dev *gf_dev, struct gf_key *gf_key)
 {
 	uint32_t key_input = 0;
@@ -372,6 +373,11 @@ static long gf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct gf_dev *gf_dev = &gf;
 	struct gf_key gf_key;
+=======
+static long gf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+{
+	struct gf_dev *gf_dev = &gf;
+>>>>>>> faa31b46bf16... Sync FPC with Ayrton
 #if defined(SUPPORT_NAV_EVENT)
 	gf_nav_event_t nav_event = GF_NAV_NONE;
 #endif
@@ -439,6 +445,7 @@ static long gf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		gf_hw_reset(gf_dev, 3);
 		break;
 
+<<<<<<< HEAD
 	case GF_IOC_INPUT_KEY_EVENT:
 		if (copy_from_user
 		    (&gf_key, (struct gf_key *)arg, sizeof(struct gf_key))) {
@@ -450,6 +457,8 @@ static long gf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 		gf_kernel_key_input(gf_dev, &gf_key);
 		break;
+=======
+>>>>>>> faa31b46bf16... Sync FPC with Ayrton
 #if defined(SUPPORT_NAV_EVENT)
 
 	case GF_IOC_NAV_EVENT:
@@ -667,7 +676,11 @@ static int gf_open(struct inode *inode, struct file *filp)
 
 		gpio_direction_input(gf_dev->irq_gpio);
 		rc = request_threaded_irq(gf_dev->irq, NULL, gf_irq,
+<<<<<<< HEAD
 					  IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+=======
+					  IRQF_TRIGGER_RISING | IRQF_ONESHOT | IRQF_PRIME_AFFINE,
+>>>>>>> faa31b46bf16... Sync FPC with Ayrton
 					  "gf", gf_dev);
 
 		if (!rc) {
