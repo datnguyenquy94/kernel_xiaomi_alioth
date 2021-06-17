@@ -3200,8 +3200,9 @@ static void sde_crtc_atomic_begin(struct drm_crtc *crtc,
 	/* cancel the idle notify delayed work */
 	if (sde_encoder_check_curr_mode(sde_crtc->mixers[0].encoder,
 					MSM_DISPLAY_VIDEO_MODE) &&
-		kthread_cancel_delayed_work_sync(&sde_crtc->idle_notify_work))
+		kthread_cancel_delayed_work_sync(&sde_crtc->idle_notify_work)) {
 		SDE_DEBUG("idle notify work cancelled\n");
+	}
 
 	fm_stat.idle_status = false;
 
@@ -6335,7 +6336,6 @@ static void __sde_crtc_idle_notify_work(struct kthread_work *work)
 		msm_mode_object_event_notify(&crtc->base, crtc->dev,
 				&event, (u8 *)&ret);
 		fm_stat.idle_status = true;
-
 		SDE_DEBUG("crtc[%d]: idle timeout notified\n", crtc->base.id);
 	}
 }
@@ -6345,9 +6345,12 @@ static void __sde_crtc_idle_notify_work_cmd_mode(struct kthread_work *work)
 	struct sde_crtc *sde_crtc = container_of(work, struct sde_crtc,
 				idle_notify_work_cmd_mode.work);
 
-	if (sde_crtc) {
+	if (!sde_crtc) {
+		SDE_ERROR("invalid sde crtc\n");
+	} else {
 		fm_stat.idle_status = true;
 		calc_fps(0,0);
+		pr_debug("idle timeout notified cmd mode\n");
 	}
 }
 

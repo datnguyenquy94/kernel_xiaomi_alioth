@@ -1044,7 +1044,11 @@ static void sde_kms_commit(struct msm_kms *kms,
 			sde_crtc_commit_kickoff(crtc, old_crtc_state);
 		}
 	}
-
+/*
+	for_each_old_crtc_in_state(old_state, crtc, old_crtc_state, i) {
+		sde_crtc_fod_ui_ready(crtc, old_crtc_state);
+	}
+*/
 	SDE_ATRACE_END("sde_kms_commit");
 }
 
@@ -1261,7 +1265,7 @@ static void sde_kms_wait_for_commit_done(struct msm_kms *kms,
 		sde_crtc_complete_flip(crtc, NULL);
 	}
 
-	SDE_ATRACE_END("sde_ksm_wait_for_commit_done");
+	SDE_ATRACE_END("sde_kms_wait_for_commit_done");
 }
 
 static void sde_kms_prepare_fence(struct msm_kms *kms,

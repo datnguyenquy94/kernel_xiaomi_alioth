@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017, 2019-2020 The Linux Foundation. All rights reserved.
+ * Copyright (C) 2021 XiaoMi, Inc.
  */
 
 #include <linux/kernel.h>
@@ -27,14 +28,14 @@ static int __init audio_q6_init(void)
 #endif
 	msm_mdf_init();
 	voice_mhi_init();
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	elliptic_driver_init();
-#endif
 	digital_cdc_rsc_mgr_init();
+/* for mius start */
 #ifdef CONFIG_US_PROXIMITY
 	mius_driver_init();
 #endif
-	return 0;
+/* for mius end */
+    return 0;
 }
 
 static void __exit audio_q6_exit(void)
@@ -58,12 +59,12 @@ static void __exit audio_q6_exit(void)
 	audio_cal_exit();
 	adsp_err_exit();
 	voice_mhi_exit();
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	elliptic_driver_exit();
-#endif
+/* for mius start */
 #ifdef CONFIG_US_PROXIMITY
 	mius_driver_exit();
 #endif
+/* for mius end */
 }
 
 module_init(audio_q6_init);

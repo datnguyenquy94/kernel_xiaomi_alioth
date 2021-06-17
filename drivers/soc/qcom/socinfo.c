@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2009-2020, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2021 XiaoMi, Inc.
  */
 
 #define pr_fmt(fmt) "%s: " fmt, __func__
@@ -53,7 +54,7 @@ enum {
 	HW_PLATFORM_RCM	= 21,
 	HW_PLATFORM_STP = 23,
 	HW_PLATFORM_SBC = 24,
-#ifdef CONFIG_MACH_XIAOMI_SM8250
+
 	HW_PLATFORM_J1  = 36,
 	HW_PLATFORM_J11 = 37,
 	HW_PLATFORM_J1S = 41,
@@ -61,7 +62,6 @@ enum {
 	HW_PLATFORM_J2  = 43,
 	HW_PLATFORM_K11A = 44,
 	HW_PLATFORM_J2S = 45,
-#endif
 	HW_PLATFORM_HDK = 31,
 	HW_PLATFORM_IDP = 34,
 	HW_PLATFORM_INVALID
@@ -84,7 +84,6 @@ const char *hw_platform[] = {
 	[HW_PLATFORM_DTV] = "DTV",
 	[HW_PLATFORM_STP] = "STP",
 	[HW_PLATFORM_SBC] = "SBC",
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	[HW_PLATFORM_J2] = "UMI",
 	[HW_PLATFORM_J1] = "CMI",
 	[HW_PLATFORM_J11] = "LMI",
@@ -92,7 +91,6 @@ const char *hw_platform[] = {
 	[HW_PLATFORM_J3S] = "APOLLO",
 	[HW_PLATFORM_K11A] = "ALIOTH",
 	[HW_PLATFORM_J2S] = "THYME",
-#endif
 	[HW_PLATFORM_HDK] = "HDK",
 	[HW_PLATFORM_IDP] = "IDP"
 };
@@ -338,11 +336,7 @@ static struct msm_soc_info cpu_of_id[] = {
 	[365] = {MSM_CPU_SDMMAGPIE, "SDMMAGPIE"},
 
 	/* kona ID */
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	[356] = {MSM_CPU_KONA, "SM8250"},
-#else
-	[356] = {MSM_CPU_KONA, "KONA"},
-#endif
 	[455] = {MSM_CPU_KONA, "KONA"},
 
 	/* Lito ID */
@@ -1643,7 +1637,6 @@ static void socinfo_select_format(void)
 	}
 }
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 const char *product_name_get(void)
 {
 	char *product_name = NULL;
@@ -1713,7 +1706,6 @@ uint32_t get_hw_version_build(void)
 	return (version & HW_BUILD_VERSION_MASK) >> HW_BUILD_VERSION_SHIFT;
 }
 EXPORT_SYMBOL(get_hw_version_build);
-#endif
 
 int __init socinfo_init(void)
 {

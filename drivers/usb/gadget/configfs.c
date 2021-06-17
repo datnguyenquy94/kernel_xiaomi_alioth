@@ -18,9 +18,7 @@
 #ifdef CONFIG_USB_F_NCM
 #include "function/u_ncm.h"
 #endif
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 #include <linux/power_supply.h>
-#endif
 
 #ifdef CONFIG_USB_CONFIGFS_F_ACC
 extern int acc_ctrlrequest(struct usb_composite_dev *cdev,
@@ -94,9 +92,7 @@ struct gadget_info {
 	struct usb_composite_dev cdev;
 	bool use_os_desc;
 	bool unbinding;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	bool isMSOS;
-#endif
 	char b_vendor_code;
 	char qw_sign[OS_STRING_QW_SIGN_LEN];
 	spinlock_t spinlock;
@@ -155,9 +151,7 @@ struct gadget_config_name {
 
 #define MAX_USB_STRING_LEN	126
 #define MAX_USB_STRING_WITH_NULL_LEN	(MAX_USB_STRING_LEN+1)
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 #define MSOS_VENDOR_TYPE 0x01
-#endif
 
 static int usb_string_copy(const char *s, char **s_copy)
 {
@@ -1433,7 +1427,6 @@ err_comp_cleanup:
 	return ret;
 }
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 static int smblib_canncel_recheck(void)
 {
 	union power_supply_propval pval = {0};
@@ -1454,7 +1447,6 @@ static int smblib_canncel_recheck(void)
 
 	return rc;
 }
-#endif
 
 #ifdef CONFIG_USB_CONFIGFS_UEVENT
 static void android_work(struct work_struct *data)
@@ -1485,33 +1477,29 @@ static void android_work(struct work_struct *data)
 	if (status[0]) {
 		kobject_uevent_env(&gi->dev->kobj,
 					KOBJ_CHANGE, connected);
-		pr_info("%s: sent uevent %s\n", __func__, connected[0]);
+		pr_err("%s: sent uevent %s\n", __func__, connected[0]);
 		uevent_sent = true;
 	}
 
 	if (status[1]) {
 		kobject_uevent_env(&gi->dev->kobj,
 					KOBJ_CHANGE, configured);
-		pr_info("%s: sent uevent %s\n", __func__, configured[0]);
+		pr_err("%s: sent uevent %s\n", __func__, configured[0]);
 		uevent_sent = true;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 		smblib_canncel_recheck();
-#endif
 	}
 
 	if (status[2]) {
 		kobject_uevent_env(&gi->dev->kobj,
 					KOBJ_CHANGE, disconnected);
-		pr_info("%s: sent uevent %s\n", __func__, disconnected[0]);
+		pr_err("%s: sent uevent %s\n", __func__, disconnected[0]);
 		uevent_sent = true;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 		gi->isMSOS = false;
 		cdev->isMSOS = false;
-#endif
 	}
 
 	if (!uevent_sent) {
-		pr_info("%s: did not send uevent (%d %d %pK)\n", __func__,
+		pr_err("%s: did not send uevent (%d %d %pK)\n", __func__,
 			gi->connected, gi->sw_connected, cdev->config);
 	}
 }
@@ -1645,7 +1633,6 @@ static int android_setup(struct usb_gadget *gadget,
 	int value = -EOPNOTSUPP;
 	struct usb_function_instance *fi;
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	if ((c->bRequestType & USB_TYPE_MASK) == USB_TYPE_VENDOR) {
 		if ((c->bRequest == MSOS_VENDOR_TYPE) &&
 			(c->bRequestType & USB_DIR_IN) && le16_to_cpu(c->wIndex == 4)) {
@@ -1653,7 +1640,6 @@ static int android_setup(struct usb_gadget *gadget,
 			cdev->isMSOS = true;
 		}
 	}
-#endif
 	spin_lock_irqsave(&cdev->lock, flags);
 	if (!gi->connected) {
 		gi->connected = 1;
@@ -1781,7 +1767,6 @@ out:
 	return sprintf(buf, "%s\n", state);
 }
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 static ssize_t isMSOS_show(struct device *pdev, struct device_attribute *attr,
 		char *buf)
 {
@@ -1796,18 +1781,13 @@ static ssize_t isMSOS_show(struct device *pdev, struct device_attribute *attr,
 out:
 	return snprintf(buf, len, "%d\n", isMSOS);
 }
-#endif
 
 static DEVICE_ATTR(state, S_IRUGO, state_show, NULL);
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 static DEVICE_ATTR(isMSOS, S_IRUGO, isMSOS_show, NULL);
-#endif
 
 static struct device_attribute *android_usb_attributes[] = {
 	&dev_attr_state,
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	&dev_attr_isMSOS,
-#endif
 	NULL
 };
 

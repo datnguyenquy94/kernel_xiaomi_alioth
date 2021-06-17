@@ -2,6 +2,7 @@
  * RAM Oops/Panic logger
  *
  * Copyright (C) 2010 Marco Stornelli <marco.stornelli@gmail.com>
+ * Copyright (C) 2021 XiaoMi, Inc.
  * Copyright (C) 2011 Kees Cook <keescook@chromium.org>
  *
  * This program is free software; you can redistribute it and/or
@@ -35,9 +36,7 @@
 #include <linux/pstore_ram.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 #include <linux/memblock.h>
-#endif
 
 #define RAMOOPS_KERNMSG_HDR "===="
 #define MIN_MEM_SIZE 4096UL
@@ -823,10 +822,10 @@ static int ramoops_probe(struct platform_device *pdev)
 	 * For ramoops_init_przs() cases, the "max count" variable tells
 	 * if there are regions present. For ramoops_init_prz() cases,
 	 * the single region size is how to check.
-	 */
+	*/
 	cxt->pstore.flags = 0;
 	if (cxt->max_dump_cnt)
-		cxt->pstore.flags |= PSTORE_FLAGS_DMESG;
+	cxt->pstore.flags |= PSTORE_FLAGS_DMESG;
 	if (cxt->console_size)
 		cxt->pstore.flags |= PSTORE_FLAGS_CONSOLE;
 	if (cxt->max_ftrace_cnt)
@@ -838,14 +837,14 @@ static int ramoops_probe(struct platform_device *pdev)
 	 * Since bufsize is only used for dmesg crash dumps, it
 	 * must match the size of the dprz record (after PRZ header
 	 * and ECC bytes have been accounted for).
-	 */
+	*/
 	if (cxt->pstore.flags & PSTORE_FLAGS_DMESG) {
 		cxt->pstore.bufsize = cxt->dprzs[0]->buffer_size;
 		cxt->pstore.buf = kzalloc(cxt->pstore.bufsize, GFP_KERNEL);
 		if (!cxt->pstore.buf) {
 			pr_err("cannot allocate pstore crash dump buffer\n");
-			err = -ENOMEM;
-			goto fail_clear;
+		err = -ENOMEM;
+		goto fail_clear;
 		}
 	}
 
@@ -970,7 +969,6 @@ static void __init ramoops_register_dummy(void)
 	}
 }
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 struct ramoops_platform_data ramoops_data;
 
 static struct platform_device ramoops_dev  = {
@@ -1013,7 +1011,6 @@ static int __init msm_register_ramoops_device(void)
 	return 0;
 }
 core_initcall(msm_register_ramoops_device);
-#endif
 
 static int __init ramoops_init(void)
 {

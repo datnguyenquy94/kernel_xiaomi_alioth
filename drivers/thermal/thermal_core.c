@@ -22,11 +22,10 @@
 #include <net/netlink.h>
 #include <net/genetlink.h>
 #include <linux/suspend.h>
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 #include <linux/cpu_cooling.h>
+
 #ifdef CONFIG_DRM
 #include <drm/drm_notifier_mi.h>
-#endif
 #endif
 
 #define CREATE_TRACE_POINTS
@@ -40,9 +39,7 @@ MODULE_DESCRIPTION("Generic thermal management sysfs support");
 MODULE_LICENSE("GPL v2");
 
 #define THERMAL_MAX_ACTIVE	16
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 #define CPU_LIMITS_PARAM_NUM	2
-#endif
 
 static DEFINE_IDA(thermal_tz_ida);
 static DEFINE_IDA(thermal_cdev_ida);
@@ -62,7 +59,6 @@ static struct thermal_governor *def_governor;
 
 static struct workqueue_struct *thermal_passive_wq;
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 #ifdef CONFIG_DRM
 struct screen_monitor {
 	struct notifier_block thermal_notifier;
@@ -80,7 +76,6 @@ const char *board_sensor;
 static char board_sensor_temp[128];
 const char *ambient_sensor;
 static char ambient_sensor_temp[128];
-#endif
 
 /*
  * Governor section: set of functions to handle thermal governors
@@ -1649,7 +1644,6 @@ static struct notifier_block thermal_pm_nb = {
 	.notifier_call = thermal_pm_notify,
 };
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 static int of_parse_thermal_message(void)
 {
 	struct device_node *np;
@@ -1951,7 +1945,6 @@ static int screen_state_for_thermal_callback(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 #endif
-#endif
 
 static int __init thermal_init(void)
 {
@@ -1984,7 +1977,6 @@ static int __init thermal_init(void)
 		pr_warn("Thermal: Can not register suspend notifier, return %d\n",
 			result);
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	result = of_parse_thermal_message();
 	if (result)
 		pr_warn("Thermal: Can not parse thermal message node, return %d\n",
@@ -2000,7 +1992,6 @@ static int __init thermal_init(void)
 	if (mi_drm_register_client(&sm.thermal_notifier) < 0) {
 		pr_warn("Thermal: register screen state callback failed\n");
 	}
-#endif
 #endif
 
 	return 0;
@@ -2022,18 +2013,14 @@ error:
 
 static void thermal_exit(void)
 {
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 #ifdef CONFIG_DRM
 	mi_drm_unregister_client(&sm.thermal_notifier);
-#endif
 #endif
 	unregister_pm_notifier(&thermal_pm_nb);
 	of_thermal_destroy_zones();
 	destroy_workqueue(thermal_passive_wq);
 	genetlink_exit();
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	destroy_thermal_message_node();
-#endif
 	class_unregister(&thermal_class);
 	thermal_unregister_governors();
 	ida_destroy(&thermal_tz_ida);

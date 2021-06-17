@@ -3121,9 +3121,9 @@ error:
 static void _sde_encoder_input_disconnect(struct input_handle *handle)
 {
 	SDE_EVT32(handle, SDE_EVTLOG_FUNC_EXIT);
-     input_close_device(handle);
-     input_unregister_handle(handle);
-     kfree(handle);
+	input_close_device(handle);
+	input_unregister_handle(handle);
+	kfree(handle);
 }
 
 /**

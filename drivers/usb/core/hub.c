@@ -44,8 +44,6 @@
 #define USB_TP_TRANSMISSION_DELAY	40	/* ns */
 #define USB_TP_TRANSMISSION_DELAY_MAX	65535	/* ns */
 
-int deny_new_usb __read_mostly = 0;
-
 /* Protect struct usb_device->state and ->children members
  * Note: Both are also protected by ->dev.sem, except that ->state can
  * change to USB_STATE_NOTATTACHED even when the semaphore isn't held. */
@@ -144,12 +142,8 @@ struct usb_hub *usb_hub_to_struct_hub(struct usb_device *hdev)
 
 int usb_device_supports_lpm(struct usb_device *udev)
 {
-#ifdef CONFIG_MACH_XIAOMI_SM8250
+	/* Some devices have trouble with LPM so can't support lpm*/
 	return 0;
-#else
-	/* Some devices have trouble with LPM */
-	if (udev->quirks & USB_QUIRK_NO_LPM)
-		return 0;
 
 	/* USB 2.1 (and greater) devices indicate LPM support through
 	 * their USB 2.0 Extended Capabilities BOS descriptor.
@@ -184,7 +178,6 @@ int usb_device_supports_lpm(struct usb_device *udev)
 	if (!udev->parent || udev->parent->lpm_capable)
 		return 1;
 	return 0;
-#endif
 }
 
 /*
@@ -4452,7 +4445,6 @@ static int hub_set_address(struct usb_device *udev, int devnum)
 	return retval;
 }
 
-#ifndef CONFIG_MACH_XIAOMI_SM8250
 /*
  * There are reports of USB 3.0 devices that say they support USB 2.0 Link PM
  * when they're plugged into a USB 2.0 port, but they don't work when LPM is
@@ -4479,7 +4471,6 @@ static void hub_set_initial_usb2_lpm_policy(struct usb_device *udev)
 		usb_enable_usb2_hardware_lpm(udev);
 	}
 }
-#endif
 
 static int hub_enable_device(struct usb_device *udev)
 {
@@ -4843,9 +4834,9 @@ hub_port_init(struct usb_hub *hub, struct usb_device *udev, int port1,
 	/* notify HCD that we have a device connected and addressed */
 	if (hcd->driver->update_device)
 		hcd->driver->update_device(hcd, udev);
-#ifndef CONFIG_MACH_XIAOMI_SM8250
-	hub_set_initial_usb2_lpm_policy(udev);
-#endif
+	/*skip this initial*/
+	if (0)
+		hub_set_initial_usb2_lpm_policy(udev);
 fail:
 	if (retval) {
 		hub_port_disable(hub, port1, 0);
@@ -4990,12 +4981,6 @@ static void hub_port_connect(struct usb_hub *hub, int port1, u16 portstatus,
 			goto done;
 		return;
 	}
-
-	if (deny_new_usb) {
-		dev_err(&port_dev->dev, "denied insert of USB device on port %d\n", port1);
-		goto done;
-	}
-
 	if (hub_is_superspeed(hub->hdev))
 		unit_load = 150;
 	else

@@ -35,6 +35,8 @@
 
 #include <trace/events/thermal.h>
 
+#define USE_LMH_DEV    0
+
 /*
  * Cooling state <-> CPUFreq frequency
  *
@@ -125,11 +127,7 @@ static int cpufreq_thermal_notifier(struct notifier_block *nb,
 	unsigned long clipped_freq = ULONG_MAX, floor_freq = 0;
 	struct cpufreq_cooling_device *cpufreq_cdev;
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	if (event != CPUFREQ_THERMAL)
-#else
-	if (event != CPUFREQ_INCOMPATIBLE)
-#endif
 		return NOTIFY_DONE;
 
 	mutex_lock(&cooling_list_lock);
@@ -155,28 +153,15 @@ static int cpufreq_thermal_notifier(struct notifier_block *nb,
 		 * Similarly, if policy minimum set by the user is less than
 		 * the floor_frequency, then adjust the policy->min.
 		 */
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 		if (clipped_freq > cpufreq_cdev->clipped_freq)
-#endif
-		clipped_freq = cpufreq_cdev->clipped_freq;
-#ifndef CONFIG_MACH_XIAOMI_SM8250
-		floor_freq = cpufreq_cdev->floor_freq;
-		if (policy->max > clipped_freq || policy->min < floor_freq)
-			cpufreq_verify_within_limits(policy, floor_freq,
-							clipped_freq);
-		break;
-#endif
+			clipped_freq = cpufreq_cdev->clipped_freq;
 	}
-
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	cpufreq_verify_within_limits(policy, floor_freq, clipped_freq);
-#endif
 	mutex_unlock(&cooling_list_lock);
 
 	return NOTIFY_OK;
 }
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 void cpu_limits_set_level(unsigned int cpu, unsigned int max_freq)
 {
 	struct cpufreq_cooling_device *cpufreq_cdev;
@@ -200,7 +185,6 @@ void cpu_limits_set_level(unsigned int cpu, unsigned int max_freq)
 		}
 	}
 }
-#endif
 
 #ifdef CONFIG_ENERGY_MODEL
 /**
@@ -443,11 +427,7 @@ static int cpufreq_set_cur_state(struct thermal_cooling_device *cdev,
 
 	/* Request state should be less than max_level */
 	if (WARN_ON(state > cpufreq_cdev->max_level))
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 		return cpufreq_cdev->max_level;
-#else
-		return -EINVAL;
-#endif
 
 	/* Check if the old cooling action is same as new cooling action */
 	if (cpufreq_cdev->cpufreq_state == state)
@@ -461,19 +441,18 @@ static int cpufreq_set_cur_state(struct thermal_cooling_device *cdev,
 	 * can handle the CPU freq mitigation, if not, notify cpufreq
 	 * framework.
 	 */
-#ifdef CONFIG_MACH_XIAOMI_SM8250
-	get_online_cpus();
-	cpufreq_update_policy(cpufreq_cdev->policy->cpu);
-	put_online_cpus();
-#else
-	if (cpufreq_cdev->plat_ops &&
-		cpufreq_cdev->plat_ops->ceil_limit)
+	if (USE_LMH_DEV && cpufreq_cdev->plat_ops &&
+		cpufreq_cdev->plat_ops->ceil_limit) {
 		cpufreq_cdev->plat_ops->ceil_limit(cpufreq_cdev->policy->cpu,
 							clip_freq);
-	else
+		get_online_cpus();
 		cpufreq_update_policy(cpufreq_cdev->policy->cpu);
-#endif
-
+		put_online_cpus();
+	} else {
+		get_online_cpus();
+		cpufreq_update_policy(cpufreq_cdev->policy->cpu);
+		put_online_cpus();
+	}
 	return 0;
 }
 
@@ -749,11 +728,7 @@ __cpufreq_cooling_register(struct device_node *np,
 	list_add(&cpufreq_cdev->node, &cpufreq_cdev_list);
 	mutex_unlock(&cooling_list_lock);
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	if (first)
-#else
-	if (first && !cpufreq_cdev->plat_ops)
-#endif
 		cpufreq_register_notifier(&thermal_cpufreq_notifier_block,
 					  CPUFREQ_POLICY_NOTIFIER);
 
@@ -893,12 +868,9 @@ void cpufreq_cooling_unregister(struct thermal_cooling_device *cdev)
 	mutex_unlock(&cooling_list_lock);
 
 	if (last) {
-#ifndef CONFIG_MACH_XIAOMI_SM8250
-		if (!cpufreq_cdev->plat_ops)
-#endif
-			cpufreq_unregister_notifier(
-					&thermal_cpufreq_notifier_block,
-					CPUFREQ_POLICY_NOTIFIER);
+		cpufreq_unregister_notifier(
+				&thermal_cpufreq_notifier_block,
+				CPUFREQ_POLICY_NOTIFIER);
 	}
 
 	thermal_cooling_device_unregister(cpufreq_cdev->cdev);

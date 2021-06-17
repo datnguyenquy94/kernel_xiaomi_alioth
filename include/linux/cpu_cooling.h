@@ -36,9 +36,7 @@ struct cpu_cooling_ops {
 	plat_mitig_t ceil_limit, floor_limit;
 };
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 void cpu_limits_set_level(unsigned int cpu, unsigned int max_freq);
-#endif
 
 #ifdef CONFIG_CPU_THERMAL
 /**

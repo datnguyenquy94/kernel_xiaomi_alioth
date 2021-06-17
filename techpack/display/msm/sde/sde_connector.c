@@ -168,7 +168,6 @@ static int sde_backlight_setup(struct sde_connector *c_conn,
 		return -ENODEV;
 	}
 	display_count++;
-
 	rc = sde_backlight_clone_setup(c_conn, dev->dev, c_conn->bl_device);
 	if (rc) {
 		SDE_ERROR("Failed to register backlight_clone_cdev: %ld\n",
@@ -178,7 +177,6 @@ static int sde_backlight_setup(struct sde_connector *c_conn,
 		c_conn->bl_device = NULL;
 		return -ENODEV;
 	}
-
 	return 0;
 }
 
@@ -1234,7 +1232,6 @@ void sde_connector_destroy(struct drm_connector *connector)
 		drm_property_blob_put(c_conn->blob_mode_info);
 	if (c_conn->blob_ext_hdr)
 		drm_property_blob_put(c_conn->blob_ext_hdr);
-
 	if (c_conn->cdev_clone)
 		backlight_clone_cdev_unregister(c_conn->cdev_clone);
 	if (c_conn->bl_device)
@@ -1722,19 +1719,13 @@ static int sde_connector_atomic_set_property(struct drm_connector *connector,
 	 * atomic set property framework.
 	 */
 	case CONNECTOR_PROP_BL_SCALE:
-#ifdef CONFIG_MACH_XIAOMI_SM8250
+		//c_conn->bl_scale = val;
 		c_conn->bl_scale = MAX_BL_SCALE_LEVEL;
-#else
-		c_conn->bl_scale = val;
-#endif
 		c_conn->bl_scale_dirty = true;
 		break;
 	case CONNECTOR_PROP_SV_BL_SCALE:
-#ifdef CONFIG_MACH_XIAOMI_SM8250
+		//c_conn->bl_scale_sv = val;
 		c_conn->bl_scale_sv = MAX_SV_BL_SCALE_LEVEL;
-#else
-		c_conn->bl_scale_sv = val;
-#endif
 		c_conn->bl_scale_dirty = true;
 		break;
 	case CONNECTOR_PROP_HDR_METADATA:
@@ -2552,8 +2543,10 @@ static void _sde_connector_report_panel_dead(struct sde_connector *conn,
 	 * 2) Commit thread (if TE stops coming)
 	 * So such case, avoid failure notification twice.
 	 */
-	if (conn->panel_dead)
+	if (conn->panel_dead) {
+		SDE_INFO("panel_dead is true, return!\n");
 		return;
+	}
 
 	conn->panel_dead = true;
 	display->panel->mi_cfg.panel_dead_flag = true;
