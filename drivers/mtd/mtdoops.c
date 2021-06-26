@@ -2,7 +2,6 @@
  * MTD Oops/Panic logger
  *
  * Copyright © 2007 Nokia Corporation. All rights reserved.
- * Copyright (C) 2021 XiaoMi, Inc.
  *
  * Author: Richard Purdie <rpurdie@openedhand.com>
  *
@@ -384,9 +383,9 @@ static void mtdoops_do_dump(struct kmsg_dumper *dumper,
 
 	mtdoops_add_pmsg_head(cxt->oops_buf + ret_len, MTDOOPS_TYPE_PMSG);
 
-	/* Panics must be written immediately */
 	if (reason == KMSG_DUMP_OOPS || reason == KMSG_DUMP_PANIC || reason == KMSG_DUMP_LONG_PRESS) {
 		mtdoops_write(cxt, 1);
+		/* Panics must be written immediately */
 	} else {
 		/* For other cases, schedule work to write it "nicely" */
 		schedule_work(&cxt->work_write);

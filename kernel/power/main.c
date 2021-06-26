@@ -2,7 +2,6 @@
  * kernel/power/main.c - PM subsystem core functionality.
  *
  * Copyright (c) 2003 Patrick Mochel
- * Copyright (C) 2021 XiaoMi, Inc.
  * Copyright (c) 2003 Open Source Development Lab
  *
  * This file is released under the GPLv2
@@ -542,6 +541,7 @@ static inline void pm_print_times_init(void) {}
 #endif /* CONFIG_PM_SLEEP_DEBUG */
 
 struct kobject *power_kobj;
+EXPORT_SYMBOL_GPL(power_kobj);
 
 /**
  * state - control system sleep states.

@@ -26,6 +26,10 @@
 #include <linux/bitops.h>
 #include <trace/events/jbd2.h>
 
+#if defined(CONFIG_UFSTW) && defined(UFS3V0)
+#include <linux/ufstw.h>
+#endif
+
 /*
  * IO end handler for temporary buffer_heads handling writes to the journal.
  */
@@ -531,6 +535,10 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 
 	jbd_debug(3, "JBD2: commit phase 2a\n");
 
+#if defined(CONFIG_UFSTW) && defined(UFS3V0)
+	bdev_set_turbo_write(journal->j_dev);
+#endif
+
 	/*
 	 * Now start flushing things to disk, in the order they appear
 	 * on the transaction lists.  Data blocks go first.
@@ -992,9 +1000,10 @@ restart_loop:
 			 * journalled data) we need to unmap buffer and clear
 			 * more bits. We also need to be careful about the check
 			 * because the data page mapping can get cleared under
-			 * out hands, which alse need not to clear more bits
-			 * because the page and buffers will be freed and can
-			 * never be reused once we are done with them.
+			 * our hands. Note that if mapping == NULL, we don't
+			 * need to make buffer unmapped because the page is
+			 * already detached from the mapping and buffers cannot
+			 * get reused.
 			 */
 			mapping = READ_ONCE(bh->b_page->mapping);
 			if (mapping && !sb_is_blkdev_sb(mapping->host->i_sb)) {
@@ -1129,6 +1138,9 @@ restart_loop:
 	write_unlock(&journal->j_state_lock);
 	wake_up(&journal->j_wait_done_commit);
 
+#if defined(CONFIG_UFSTW) && defined(UFS3V0)
+	bdev_clear_turbo_write(journal->j_dev);
+#endif
 	/*
 	 * Calculate overall stats
 	 */

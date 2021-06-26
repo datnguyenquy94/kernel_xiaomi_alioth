@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2018-2020, The Linux Foundation. All rights reserved.
- * Copyright (C) 2021 XiaoMi, Inc.
  */
 
 #include <soc/qcom/qmi_rmnet.h>
@@ -1257,8 +1256,7 @@ void qmi_rmnet_work_init(void *port)
 	if (rmnet_ps_wq)
 		return;
 
-	rmnet_ps_wq = alloc_workqueue("rmnet_powersave_work",
-				      WQ_CPU_INTENSIVE, 1);
+	rmnet_ps_wq = create_freezable_workqueue("rmnet_powersave_work");
 
 	if (!rmnet_ps_wq)
 		return;

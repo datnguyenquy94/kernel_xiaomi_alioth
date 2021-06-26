@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2018-2020, The Linux Foundation. All rights reserved.
  */
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/clk.h>
@@ -47,9 +48,8 @@
 #define TX_MACRO_DMIC_HPF_DELAY_MS	100
 #define TX_MACRO_AMIC_HPF_DELAY_MS	100
 
-static int tx_unmute_delay = TX_MACRO_DMIC_UNMUTE_DELAY_MS;
 struct tx_macro_priv *g_tx_priv;
-
+static int tx_unmute_delay = TX_MACRO_DMIC_UNMUTE_DELAY_MS;
 module_param(tx_unmute_delay, int, 0664);
 MODULE_PARM_DESC(tx_unmute_delay, "delay to unmute the tx path");
 
@@ -563,6 +563,7 @@ static void tx_macro_mute_update_callback(struct work_struct *work)
 	dev_dbg(tx_priv->dev, "%s: decimator %u unmute\n",
 		__func__, decimator);
 }
+
 static void tx_macro_hs_unmute_dwork(struct work_struct *work)
 {
 	struct snd_soc_component *component = NULL;
@@ -978,6 +979,7 @@ static int tx_macro_enable_dec(struct snd_soc_dapm_widget *w,
 		return -EINVAL;
 
 	decimator = w->shift;
+
 	dev_dbg(component->dev, "%s(): widget = %s decimator = %u\n", __func__,
 			w->name, decimator);
 
@@ -1056,8 +1058,8 @@ static int tx_macro_enable_dec(struct snd_soc_dapm_widget *w,
 		if (tx_priv->tx_hpf_work[decimator].hpf_cut_off_freq !=
 							CF_MIN_3DB_150HZ) {
 			queue_delayed_work(system_freezable_wq,
-					&tx_priv->tx_hpf_work[decimator].dwork,
-					msecs_to_jiffies(100));
+				&tx_priv->tx_hpf_work[decimator].dwork,
+				msecs_to_jiffies(100));
 			snd_soc_component_update_bits(component,
 					hpf_gate_reg, 0x03, 0x02);
 			if (!is_amic_enabled(component, decimator))
@@ -3243,6 +3245,7 @@ static int tx_macro_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, tx_priv);
 	g_tx_priv = tx_priv;
+
 	tx_priv->dev = &pdev->dev;
 	ret = of_property_read_u32(pdev->dev.of_node, "reg",
 				   &tx_base_addr);

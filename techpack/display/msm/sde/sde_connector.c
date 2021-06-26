@@ -90,15 +90,19 @@ static int sde_backlight_device_update_status(struct backlight_device *bd)
 
 	c_conn = bl_get_data(bd);
 	display = (struct dsi_display *) c_conn->display;
-	if (brightness > display->panel->bl_config.bl_max_level)
-		brightness = display->panel->bl_config.bl_max_level;
+	if (brightness > display->panel->bl_config.brightness_max_level)
+		brightness = display->panel->bl_config.brightness_max_level;
 
-	/* map UI brightness into driver backlight level with rounding */
-	bl_lvl = mult_frac(brightness, display->panel->bl_config.bl_max_level,
-			display->panel->bl_config.brightness_max_level);
+	if (brightness) {
+		int bl_min = display->panel->bl_config.bl_min_level ? : 1;
+		int bl_range = display->panel->bl_config.bl_max_level - bl_min;
 
-	if (!bl_lvl && brightness)
-		bl_lvl = 1;
+		/* map UI brightness into driver backlight level rounding it */
+		bl_lvl = bl_min + DIV_ROUND_CLOSEST((brightness - 1) * bl_range,
+			display->panel->bl_config.brightness_max_level - 1);
+	} else {
+		bl_lvl = 0;
+	}
 
 	if (!c_conn->allow_bl_update) {
 		c_conn->unset_bl_level = bl_lvl;
@@ -590,7 +594,7 @@ static int _sde_connector_update_bl_scale(struct sde_connector *c_conn)
 	struct dsi_display *dsi_display;
 	struct dsi_backlight_config *bl_config;
 	int rc = 0;
-
+	struct backlight_device *bl_dev;
 	if (!c_conn) {
 		SDE_ERROR("Invalid params sde_connector null\n");
 		return -EINVAL;
@@ -604,10 +608,19 @@ static int _sde_connector_update_bl_scale(struct sde_connector *c_conn)
 		return -EINVAL;
 	}
 
+	bl_dev = c_conn->bl_device;
+	if (!bl_dev) {
+		SDE_ERROR("Invalid params (s) backlight_device null\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&bl_dev->update_lock);
+
 	bl_config = &dsi_display->panel->bl_config;
 
 	if (!c_conn->allow_bl_update) {
 		c_conn->unset_bl_level = bl_config->bl_level;
+		mutex_unlock(&bl_dev->update_lock);
 		return 0;
 	}
 
@@ -625,7 +638,7 @@ static int _sde_connector_update_bl_scale(struct sde_connector *c_conn)
 	rc = c_conn->ops.set_backlight(&c_conn->base,
 			dsi_display, bl_config->bl_level);
 	c_conn->unset_bl_level = 0;
-
+        mutex_unlock(&bl_dev->update_lock);
 	return rc;
 }
 
@@ -764,6 +777,40 @@ static int _sde_connector_update_dirty_properties(
 	}
 
 	return 0;
+}
+
+void sde_connector_update_fod_hbm(struct drm_connector *connector)
+{
+	static atomic_t effective_status = ATOMIC_INIT(false);
+	struct sde_crtc_state *cstate;
+	struct sde_connector *c_conn;
+	struct dsi_display *display;
+	bool status;
+
+	if (!connector) {
+		SDE_ERROR("invalid connector\n");
+		return;
+	}
+
+	c_conn = to_sde_connector(connector);
+	if (c_conn->connector_type != DRM_MODE_CONNECTOR_DSI)
+		return;
+
+	display = (struct dsi_display *) c_conn->display;
+
+	if (!c_conn->encoder || !c_conn->encoder->crtc ||
+			!c_conn->encoder->crtc->state)
+		return;
+
+	cstate = to_sde_crtc_state(c_conn->encoder->crtc->state);
+	status = cstate->fod_dim_layer != NULL;
+	if (atomic_xchg(&effective_status, status) == status)
+		return;
+
+	mutex_lock(&display->panel->panel_lock);
+	dsi_panel_set_fod_hbm(display->panel, status);
+	mutex_unlock(&display->panel->panel_lock);
+	dsi_display_set_fod_ui(display, status);
 }
 
 struct sde_connector_dyn_hdr_metadata *sde_connector_get_dyn_hdr_meta(
@@ -1068,6 +1115,8 @@ int sde_connector_pre_kickoff(struct drm_connector *connector)
 
 	/* fingerprint hbm fence */
 	_sde_connector_mi_dimlayer_hbm_fence(connector);
+
+	sde_connector_update_fod_hbm(connector);
 
 	rc = c_conn->ops.pre_kickoff(connector, c_conn->display, &params);
 
@@ -3218,14 +3267,7 @@ int sde_connector_pre_hbm_ctl(struct drm_connector *connector)
 
 static uint32_t interpolate(uint32_t x, uint32_t xa, uint32_t xb, uint32_t ya, uint32_t yb)
 {
-	uint32_t bf;
-
-	bf = ya - (ya - yb) * (x - xa) / (xb - xa);
-
-	SDE_DEBUG("backlight brightness:%d, [i-1]bl:%d, [i]bl:%d, [i-1]alpha:%d, [i]alpha:%d, bf:%d",
-			x, xa, xb, ya, yb, bf);
-
-	return bf;
+	return ya - (ya - yb) * (x - xa) / (xb - xa);
 }
 
 static uint32_t brightness_to_alpha(struct dsi_panel_mi_cfg *mi_cfg, uint32_t brightness)

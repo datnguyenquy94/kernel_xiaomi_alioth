@@ -32,10 +32,10 @@
 #include <linux/debugfs.h>
 #include <linux/version.h>
 #include <linux/input.h>
-#include "config.h"
-#include "tfa98xx.h"
-#include "tfa.h"
-#include "tfa_dsp_fw.h"
+#include "../inc/config.h"
+#include "../inc/tfa98xx.h"
+#include "../inc/tfa.h"
+#include "../inc/tfa_dsp_fw.h"
 
 #undef pr_info
 #undef pr_err
@@ -45,9 +45,9 @@
 #define pr_err(fmt, args...) printk(KERN_ERR "[tfa9874] " pr_fmt(fmt), ##args)
 
 /* required for enum tfa9912_irq */
-#include "tfa98xx_tfafieldnames.h"
+#include "../inc/tfa98xx_tfafieldnames.h"
 
-#include "spk-id.h"
+#include "../inc/spk-id.h"
 
 #define TFA98XX_VERSION	TFA98XX_API_REV_STR
 
@@ -432,6 +432,16 @@ static void tfa98xx_inputdev_unregister(struct tfa98xx *tfa98xx)
 	__tfa98xx_inputdev_check_register(tfa98xx, true);
 }
 
+#if defined(CONFIG_MACH_XIAOMI_LMI) || defined(CONFIG_MACH_XIAOMI_PICASSO)
+extern int send_tfa_cal_apr(void *buf, int cmd_size, bool bRead);
+#else
+int send_tfa_cal_apr(void *buf, int cmd_size, bool bRead)
+{
+	pr_info("this function is empty!!!\n");
+	return 0;
+}
+#endif
+
 #ifdef CONFIG_DEBUG_FS
 /* OTC reporting
  * Returns the MTP0 OTC bit value
@@ -782,16 +792,6 @@ static ssize_t tfa98xx_dbgfs_fw_state_get(struct file *file,
 
 	return simple_read_from_buffer(user_buf, count, ppos, str, strlen(str));
 }
-
-#ifdef TFA_NON_DSP_SOLUTION
-extern int send_tfa_cal_apr(void *buf, int cmd_size, bool bRead);
-#else
-int send_tfa_cal_apr(void *buf, int cmd_size, bool bRead)
-{
-	pr_info("this function is empty!!!\n");
-	return 0;
-}
-#endif
 
 static ssize_t tfa98xx_dbgfs_rpc_read(struct file *file,
 				     char __user *user_buf, size_t count,
@@ -1589,7 +1589,7 @@ static int tfa98xx_get_cal_ctl(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-#ifdef TFA_NON_DSP_SOLUTION
+#if defined(CONFIG_MACH_XIAOMI_LMI) || defined(CONFIG_MACH_XIAOMI_PICASSO)
 static atomic_t g_bypass;
 static atomic_t g_Tx_enable;
 extern int send_tfa_cal_set_bypass(void *buf, int cmd_size);
@@ -1823,7 +1823,7 @@ static int tfa98xx_create_controls(struct tfa98xx *tfa98xx)
 	ret = snd_soc_add_component_controls(tfa98xx->component, tfa98xx_controls, mix_index);
 	pr_info("create tfa98xx_controls  ret=%d", ret);
 
-#ifdef TFA_NON_DSP_SOLUTION
+#if defined(CONFIG_MACH_XIAOMI_LMI) || defined(CONFIG_MACH_XIAOMI_PICASSO)
 	ret = snd_soc_add_component_controls(tfa98xx->component, tfa987x_algo_controls, ARRAY_SIZE(tfa987x_algo_controls));
 	pr_info("create tfa987x_algo_controls  ret=%d", ret);
 #endif
@@ -1836,7 +1836,7 @@ static int tfa98xx_create_controls(struct tfa98xx *tfa98xx)
 	ret = snd_soc_add_codec_controls(tfa98xx->codec, tfa98xx_controls, mix_index);
 	pr_info("create tfa98xx_controls  ret=%d", ret);
 
-#ifdef TFA_NON_DSP_SOLUTION
+#if defined(CONFIG_MACH_XIAOMI_LMI) || defined(CONFIG_MACH_XIAOMI_PICASSO)
 	ret = snd_soc_add_codec_controls(tfa98xx->codec, tfa987x_algo_controls, ARRAY_SIZE(tfa987x_algo_controls));
 	pr_info("create tfa987x_algo_controls  ret=%d", ret);
 #endif
@@ -2907,7 +2907,7 @@ static int tfa98xx_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-#ifdef TFA_NON_DSP_SOLUTION
+#if defined(CONFIG_MACH_XIAOMI_LMI) || defined(CONFIG_MACH_XIAOMI_PICASSO)
 extern int send_tfa_cal_in_band(void *buf, int cmd_size);
 static uint8_t bytes[3*3+1] = {0};
 
@@ -3017,7 +3017,7 @@ static int tfa98xx_mute(struct snd_soc_dai *dai, int mute, int stream)
 		if (tfa98xx->dsp_fw_state != TFA98XX_DSP_FW_OK)
 			return 0;
 		mutex_lock(&tfa98xx->dsp_lock);
-#ifdef TFA_NON_DSP_SOLUTION
+#if defined(CONFIG_MACH_XIAOMI_LMI) || defined(CONFIG_MACH_XIAOMI_PICASSO)
 		tfa98xx_send_mute_cmd();
 		msleep(60);
 #endif
@@ -3027,7 +3027,7 @@ static int tfa98xx_mute(struct snd_soc_dai *dai, int mute, int stream)
 	} else {
 		if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			tfa98xx->pstream = 1;
-#ifdef TFA_NON_DSP_SOLUTION
+#if defined(CONFIG_MACH_XIAOMI_LMI) || defined(CONFIG_MACH_XIAOMI_PICASSO)
 			if (tfa98xx->tfa->is_probus_device) {
 				tfa98xx_adsp_send_calib_values();
 			}
@@ -3733,7 +3733,7 @@ static int tfa98xx_read_memtrack_data(struct tfa98xx *tfa98xx, int *pLivedata)
 			{0x705, 0x02, 0x4000},  /* T_P */
 			{0x70b, 0x02, 0x10000},  /* ReT_P */
 		},
-#ifdef NXP_SPEAKERBOOST_V3
+#ifdef CONFIG_MACH_XIAOMI_LMI
 		/* for TFA9874 primary channel */
 		{
 			{0x34, 0x22, 0x0001},  /* fRes_P */
@@ -3787,7 +3787,7 @@ static int tfa98xx_read_memtrack_data(struct tfa98xx *tfa98xx, int *pLivedata)
 		goto err;
 	}
 
-#ifdef NXP_SPEAKERBOOST_V3
+#ifdef CONFIG_MACH_XIAOMI_LMI
 	pr_info("Read livedata from Speakerboost 3.0\n");
 #else
 	pr_info("Read livedata from Speakerboost 2.0\n");

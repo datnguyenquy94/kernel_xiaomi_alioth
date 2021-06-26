@@ -1,7 +1,6 @@
 /* drivers/misc/uid_sys_stats.c
  *
  * Copyright (C) 2014 - 2015 Google, Inc.
- * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -829,6 +828,7 @@ static int __init proc_uid_sys_stats_init(void)
 {
 	hash_init(hash_table);
 	hash_init(app_hash_table);
+
 	cpu_parent = proc_mkdir("uid_cputime", NULL);
 	if (!cpu_parent) {
 		pr_err("%s: failed to create uid_cputime proc entry\n",

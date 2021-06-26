@@ -407,13 +407,13 @@ int dsi_panel_parse_mi_config(struct dsi_panel *panel,
 		}
 
 		arr = utils->get_property(utils->data,
-				"mi,mdss-dsi-dimlayer-brightness-alpha-lut", &length);
+				"qcom,disp-fod-dim-lut", &length);
 
 		length = length / sizeof(u32);
 
 		pr_info("length: %d\n", length);
 		if (!arr || length & 0x1 || length != mi_cfg->brightnes_alpha_lut_item_count * 2) {
-			pr_err("read mi,mdss-dsi-dimlayer-brightness-alpha-lut failed\n");
+			pr_err("read qcom,disp-fod-dim-lut failed\n");
 			mi_cfg->fod_dimlayer_enabled = false;
 			goto skip_dimlayer_parse;
 		}
@@ -425,10 +425,10 @@ int dsi_panel_parse_mi_config(struct dsi_panel *panel,
 			goto skip_dimlayer_parse;
 		}
 
-		rc = utils->read_u32_array(utils->data, "mi,mdss-dsi-dimlayer-brightness-alpha-lut",
+		rc = utils->read_u32_array(utils->data, "qcom,disp-fod-dim-lut",
 			(u32 *)mi_cfg->brightness_alpha_lut, length);
 		if (rc) {
-			pr_err("cannot read mi,mdss-dsi-dimlayer-brightness-alpha-lut\n");
+			pr_err("cannot read qcom,disp-fod-dim-lut\n");
 			mi_cfg->fod_dimlayer_enabled = false;
 			kfree(mi_cfg->brightness_alpha_lut);
 			goto skip_dimlayer_parse;
@@ -1783,6 +1783,9 @@ int dsi_panel_switch_disp_rate_gpio(struct dsi_panel *panel)
 			gpio_set_value(mi_cfg->disp_rate_gpio, 1);
 		} else if (90 == mode->timing.refresh_rate) {
 			gpio_set_value(mi_cfg->disp_rate_gpio, 1);
+                } else if (77 == mode->timing.refresh_rate) {
+                        gpio_set_value(mi_cfg->disp_rate_gpio, 1);
+
 		} else {
 			pr_info("disp_rate gpio not change\n");
 		}
@@ -3004,30 +3007,18 @@ int dsi_panel_set_disp_param(struct dsi_panel *panel, u32 param)
 		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_MI_SRGB);
 		break;
 	case DISPPARAM_DOZE_BRIGHTNESS_HBM:
-#ifdef CONFIG_FACTORY_BUILD
-		pr_info("doze hbm On\n");
-		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_MI_DOZE_HBM);
-		mi_cfg->dimming_state = STATE_DIM_BLOCK;
-#else
 		if (mi_cfg->in_aod) {
 			pr_info("doze hbm On\n");
 			rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_MI_DOZE_HBM);
 			mi_cfg->dimming_state = STATE_DIM_BLOCK;
 		}
-#endif
 		break;
 	case DISPPARAM_DOZE_BRIGHTNESS_LBM:
-#ifdef CONFIG_FACTORY_BUILD
-		pr_info("doze lbm On\n");
-		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_MI_DOZE_LBM);
-		mi_cfg->dimming_state = STATE_DIM_BLOCK;
-#else
 		if (mi_cfg->in_aod) {
 			pr_info("doze lbm On\n");
 			rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_MI_DOZE_LBM);
 			mi_cfg->dimming_state = STATE_DIM_BLOCK;
 		}
-#endif
 		break;
 	case DISPPARAM_DOZE_OFF:
 		pr_info("doze Off\n");

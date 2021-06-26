@@ -2145,7 +2145,6 @@ static void rx1619_fw_download_work(struct work_struct *work)
 		if ( is_valid_fw && (g_fw_rx_id >= FW_VERSION)) {
 			dev_info(chip->dev, "[rx1619] %s: FW Version correct so skip upgrade\n", __func__);
 		} else {
-#ifndef CONFIG_FACTORY_BUILD
 			dev_info(chip->dev, "[rx1619] %s: FW download start\n", __func__);
 			if (!rx1619_onekey_download_firmware(chip))
 				dev_err(chip->dev, "[rx1619] [%s] program fw failed!\n",
@@ -2159,9 +2158,6 @@ static void rx1619_fw_download_work(struct work_struct *work)
 										boot_fw_version, tx_fw_version, rx_fw_version);
 				chip->fw_version = g_fw_rx_id;
 			}
-#else
-			dev_info(chip->dev, "[rx1619] %s: factory build, don't update\n", __func__);
-#endif
 		}
 		rx_set_reverse_gpio(chip, false);
 		chip->fw_update = false;
@@ -4424,7 +4420,7 @@ static int __init rx1619_init(void)
 
 #ifndef CONFIG_RX_ON_URD
 	printk("is_nvt_rx flag is:%d\n", is_nvt_rx);
-	if (!is_nvt_rx && (hw_version != HARDWARE_PLATFORM_SKULD))
+	if (!is_nvt_rx)
 		return 0;
 #endif
 

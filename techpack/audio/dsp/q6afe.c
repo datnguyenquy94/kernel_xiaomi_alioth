@@ -21,17 +21,14 @@
 #include <dsp/msm-audio-event-notify.h>
 #include <dsp/apr_elliptic.h>
 #include <ipc/apr_tal.h>
-/* for mius start */
 #ifdef CONFIG_US_PROXIMITY
 #include <dsp/apr_mius.h>
 #endif
-/* for mius end */
 #include "adsp_err.h"
 #include "q6afecal-hwdep.h"
-#ifdef TFA_ADSP_SUPPORTED
+#if defined(CONFIG_MACH_XIAOMI_LMI) || defined(CONFIG_MACH_XIAOMI_PICASSO)
 #include "../asoc/codecs/tfa98xx/inc/tfa_platform_interface_definition.h"
 #endif
-
 #ifdef CONFIG_MSM_CSPL
 #include <dsp/msm-cirrus-playback.h>
 #endif
@@ -255,10 +252,10 @@ struct afe_ctl {
 	u32 island_mode[AFE_MAX_PORTS];
 	struct vad_config vad_cfg[AFE_MAX_PORTS];
 	struct work_struct afe_dc_work;
-#ifdef TFA_ADSP_SUPPORTED
+#if defined(CONFIG_MACH_XIAOMI_LMI) || defined(CONFIG_MACH_XIAOMI_PICASSO)
 	struct rtac_cal_block_data tfa_cal;
 	atomic_t tfa_state;
-#endif /* TFA_ADSP_SUPPORTED */
+#endif
 	struct notifier_block event_notifier;
 	/* FTM spk params */
 	uint32_t initial_cal;
@@ -954,10 +951,9 @@ static int32_t afe_callback(struct apr_client_data *data, void *priv)
 		if (rtac_make_afe_callback(data->payload,
 					   data->payload_size))
 			return 0;
-#ifdef TFA_ADSP_SUPPORTED
+#if defined(CONFIG_MACH_XIAOMI_LMI) || defined(CONFIG_MACH_XIAOMI_PICASSO)
 		if (atomic_read(&this_afe.tfa_state) == 1 &&
 			data->payload_size == sizeof(uint32_t)) {
-
 			atomic_set(&this_afe.status, payload[0]);
 			if (payload[0])
 				atomic_set(&this_afe.state, -1);
@@ -969,7 +965,8 @@ static int32_t afe_callback(struct apr_client_data *data, void *priv)
 
 			return 0;
 		}
-#endif /* TFA_ADSP_SUPPORTED */
+#endif
+
 		if (data->opcode == AFE_PORT_CMDRSP_GET_PARAM_V3)
 			param_id_pos = 4;
 		else
@@ -998,7 +995,6 @@ static int32_t afe_callback(struct apr_client_data *data, void *priv)
 			wake_up(&this_afe.wait[data->token]);
 		else
 			return -EINVAL;
-/* for mius start */
 #ifdef CONFIG_US_PROXIMITY
 	} else if (data->opcode == MI_ULTRASOUND_OPCODE) {
 		if (NULL != data->payload) {
@@ -1007,7 +1003,6 @@ static int32_t afe_callback(struct apr_client_data *data, void *priv)
 		} else
 			pr_err("[EXPORT_SYMBOLLUS]: payload ptr is Invalid");
 #endif
-/* for mius end */
 	} else if (data->opcode == AFE_EVENT_MBHC_DETECTION_SW_WA) {
 		msm_aud_evt_notifier_call_chain(SWR_WAKE_IRQ_EVENT, NULL);
 	} else if (data->opcode ==
@@ -2303,7 +2298,7 @@ static int afe_spk_prot_prepare(int src_port, int dst_port, int param_id,
 	case AFE_PARAM_ID_SP_V2_EX_VI_FTM_CFG:
 		param_info.module_id = AFE_MODULE_SPEAKER_PROTECTION_V2_EX_VI;
 		break;
-#ifdef TFA_ADSP_SUPPORTED
+#if defined(CONFIG_MACH_XIAOMI_LMI) || defined(CONFIG_MACH_XIAOMI_PICASSO)
 	case AFE_PARAM_ID_TFADSP_RX_CFG:
 	case AFE_PARAM_ID_TFADSP_RX_SET_BYPASS:
 		param_info.module_id = AFE_MODULE_ID_TFADSP_RX;
@@ -2311,7 +2306,7 @@ static int afe_spk_prot_prepare(int src_port, int dst_port, int param_id,
 	case AFE_PARAM_ID_TFADSP_TX_SET_ENABLE:
 		param_info.module_id = AFE_MODULE_ID_TFADSP_TX;
 		break;
-#endif	/* TFA_ADSP_SUPPORTED */
+#endif
 	case AFE_PARAM_ID_SP_V4_VI_CHANNEL_MAP_CFG:
 	case AFE_PARAM_ID_SP_V4_VI_OP_MODE_CFG:
 	case AFE_PARAM_ID_SP_V4_VI_R0T0_CFG:
@@ -2398,7 +2393,6 @@ afe_ultrasound_state_t elus_afe = {
 };
 EXPORT_SYMBOL(elus_afe);
 
-/* for mius start */
 #ifdef CONFIG_US_PROXIMITY
 afe_mi_ultrasound_state_t mius_afe = {
 	.ptr_apr = &this_afe.apr,
@@ -2409,7 +2403,6 @@ afe_mi_ultrasound_state_t mius_afe = {
 };
 EXPORT_SYMBOL(mius_afe);
 #endif
-/* for mius end */
 static void afe_send_cal_spv4_tx(int port_id)
 {
 	union afe_spkr_prot_config afe_spk_config;
@@ -3067,9 +3060,9 @@ static int afe_send_port_topology_id(u16 port_id)
 	ret = afe_get_cal_topology_id(port_id, &topology_id, AFE_TOPOLOGY_CAL);
 	if (ret < 0) {
 		if (port_id >= AFE_PORT_ID_VA_CODEC_DMA_TX_0 && port_id <= AFE_PORT_ID_VA_CODEC_DMA_TX_2) {
-			pr_info("%s: Check for LSM topology\n", __func__);
+			pr_debug("%s: Check for LSM topology\n", __func__);
 			ret = afe_get_cal_topology_id(port_id, &topology_id,
-							AFE_LSM_TOPOLOGY_CAL);
+						      AFE_LSM_TOPOLOGY_CAL);
 		}
 	}
 	if (ret || !topology_id) {
@@ -10711,7 +10704,7 @@ static void afe_release_uevent_data(struct kobject *kobj)
 	kfree(data);
 }
 
-#ifdef TFA_ADSP_SUPPORTED
+#if defined(CONFIG_MACH_XIAOMI_LMI) || defined(CONFIG_MACH_XIAOMI_PICASSO)
 int send_tfa_cal_apr(void *buf, int cmd_size, bool bRead)
 {
 	int32_t result, port_id = AFE_PORT_ID_TFADSP_RX;
@@ -10915,7 +10908,7 @@ int send_tfa_cal_set_tx_enable(void *buf, int cmd_size)
 	return 0;
 }
 EXPORT_SYMBOL(send_tfa_cal_set_tx_enable);
-#endif /* TFA_ADSP_SUPPORTED */
+#endif
 
 int __init afe_init(void)
 {
@@ -10984,9 +10977,9 @@ int __init afe_init(void)
 
 void afe_exit(void)
 {
-#ifdef TFA_ADSP_SUPPORTED
+#if defined(CONFIG_MACH_XIAOMI_LMI) || defined(CONFIG_MACH_XIAOMI_PICASSO)
 	afe_unmap_rtac_block(&this_afe.tfa_cal.map_data.map_handle);
-#endif /* TFA_ADSP_SUPPORTED */
+#endif
 
 	if (this_afe.apr) {
 		apr_reset(this_afe.apr);

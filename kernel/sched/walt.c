@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2020, The Linux Foundation. All rights reserved.
- * Copyright (C) 2021 XiaoMi, Inc.
  */
 
 #include <linux/syscore_ops.h>
@@ -2078,8 +2077,10 @@ static inline void run_walt_irq_work(u64 old_window_start, struct rq *rq)
 
 	result = atomic64_cmpxchg(&walt_irq_work_lastq_ws, old_window_start,
 				   rq->window_start);
-	if (result == old_window_start)
+	if (result == old_window_start) {
 		walt_irq_work_queue(&walt_cpufreq_irq_work);
+		trace_walt_window_rollover(rq->window_start);
+	}
 }
 
 /* Reflect task activity on its demand and cpu's busy time statistics */
@@ -3454,10 +3455,19 @@ void walt_irq_work(struct irq_work *irq_work)
 	/*
 	 * If the window change request is in pending, good place to
 	 * change sched_ravg_window since all rq locks are acquired.
+	 *
+	 * If the current window roll over is delayed such that the
+	 * mark_start (current wallclock with which roll over is done)
+	 * of the current task went past the window start with the
+	 * updated new window size, delay the update to the next
+	 * window roll over. Otherwise the CPU counters (prs and crs) are
+	 * not rolled over properly as mark_start > window_start.
 	 */
 	if (!is_migration) {
 		spin_lock_irqsave(&sched_ravg_window_lock, flags);
-		if (sched_ravg_window != new_sched_ravg_window) {
+
+		if ((sched_ravg_window != new_sched_ravg_window) &&
+		    (wc < this_rq()->window_start + new_sched_ravg_window)) {
 			sched_ravg_window_change_time = sched_ktime_clock();
 			printk_deferred("ALERT: changing window size from %u to %u at %lu\n",
 					sched_ravg_window,
@@ -3663,6 +3673,8 @@ int walt_proc_user_hint_handler(struct ctl_table *table,
 	int ret;
 	unsigned int old_value;
 	static DEFINE_MUTEX(mutex);
+
+	return 0;
 
 	mutex_lock(&mutex);
 

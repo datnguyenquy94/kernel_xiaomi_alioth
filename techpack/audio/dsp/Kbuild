@@ -137,7 +137,6 @@ ifdef CONFIG_SND_SOC_MSM_QDSP6V2_INTF
 	Q6_OBJS += elliptic/io_modules/userspace/elliptic_data_userspace_ctrl.o
 endif
 
-# for mius start
 ifdef CONFIG_US_PROXIMITY
 	Q6_OBJS += apr_mius.o
 	Q6_OBJS += mius/mius.o
@@ -147,7 +146,6 @@ ifdef CONFIG_US_PROXIMITY
 	Q6_OBJS += mius/io_modules/userspace/mius_data_userspace_io.o
 	Q6_OBJS += mius/io_modules/userspace/mius_data_userspace_ctrl.o
 endif
-# for mius end
 
 ifdef CONFIG_SND_SOC_MSM_QDSP6V2_VM
 	Q6_OBJS += msm-audio-event-notify.o
@@ -167,6 +165,7 @@ ifdef CONFIG_SND_SOC_MSM_QDSP6V2_VM
 	Q6_OBJS += avtimer.o
 	Q6_OBJS += q6_init.o
 endif
+
 ifdef CONFIG_XT_LOGGING
 	Q6_OBJS += sp_params.o
 endif
@@ -233,14 +232,6 @@ CDEFINES +=	-DANI_LITTLE_BYTE_ENDIAN \
 		-Werror\
 		-D__linux__
 
-ifeq ($(TARGET_PRODUCT), $(filter $(TARGET_PRODUCT),lmi lmiin lmiinpro))
-CDEFINES += -DTFA_ADSP_SUPPORTED
-endif
-
-ifneq (,$(filter $(TARGET_PRODUCT), picasso picassoin))
-        CDEFINES += -DTFA_ADSP_SUPPORTED
-endif
-
 KBUILD_CPPFLAGS += $(CDEFINES)
 
 # Currently, for versions of gcc which support it, the kernel Makefile
@@ -270,9 +261,6 @@ endif
 ifeq ($(KERNEL_BUILD), 0)
 KBUILD_EXTRA_SYMBOLS +=$(OUT)/obj/vendor/qcom/opensource/audio-kernel/ipc/Module.symvers
 endif
-
-CDEFINES += -DAUDIO_SM8250_FLAG
-
 
 ifeq ($(KERNEL_BUILD), 1)
 	obj-y += codecs/

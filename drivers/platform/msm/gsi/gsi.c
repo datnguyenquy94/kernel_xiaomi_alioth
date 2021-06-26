@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015-2020, The Linux Foundation. All rights reserved.
- * Copyright (C) 2021 XiaoMi, Inc.
  */
 
 #include <linux/of.h>
@@ -15,6 +14,11 @@
 #include "gsi.h"
 #include "gsi_reg.h"
 #include "gsi_emulation.h"
+
+#ifndef MODULE
+ #undef EXPORT_SYMBOL
+ #define EXPORT_SYMBOL(x)
+#endif
 
 #define GSI_CMD_TIMEOUT (5*HZ)
 #define GSI_START_CMD_TIMEOUT_MS 1000
@@ -848,7 +852,6 @@ static void gsi_handle_irq(void)
 
 	if (type & GSI_EE_n_CNTXT_TYPE_IRQ_GENERAL_BMSK)
 		gsi_handle_general(ee);
-
 }
 
 static irqreturn_t gsi_isr(int irq, void *ctxt)
@@ -2551,7 +2554,7 @@ static int gsi_alloc_ap_channel(unsigned int chan_hdl)
 }
 
 static void __gsi_write_channel_scratch(unsigned long chan_hdl,
-		union __packed gsi_channel_scratch val)
+		union gsi_channel_scratch val)
 {
 	gsi_writel(val.data.word1, gsi_ctx->base +
 		GSI_EE_n_GSI_CH_k_SCRATCH_0_OFFS(chan_hdl,
@@ -2632,7 +2635,7 @@ int gsi_write_channel_scratch2_reg(unsigned long chan_hdl,
 EXPORT_SYMBOL(gsi_write_channel_scratch2_reg);
 
 static void __gsi_read_channel_scratch(unsigned long chan_hdl,
-		union __packed gsi_channel_scratch * val)
+		union gsi_channel_scratch * val)
 {
 	val->data.word1 = gsi_readl(gsi_ctx->base +
 		GSI_EE_n_GSI_CH_k_SCRATCH_0_OFFS(chan_hdl,
@@ -2651,10 +2654,10 @@ static void __gsi_read_channel_scratch(unsigned long chan_hdl,
 			gsi_ctx->per.ee));
 }
 
-static union __packed gsi_channel_scratch __gsi_update_mhi_channel_scratch(
+static union gsi_channel_scratch __gsi_update_mhi_channel_scratch(
 	unsigned long chan_hdl, struct __packed gsi_mhi_channel_scratch mscr)
 {
-	union __packed gsi_channel_scratch scr;
+	union gsi_channel_scratch scr;
 
 	/* below sequence is not atomic. assumption is sequencer specific fields
 	 * will remain unchanged across this sequence
@@ -2711,7 +2714,7 @@ static union __packed gsi_channel_scratch __gsi_update_mhi_channel_scratch(
 }
 
 int gsi_write_channel_scratch(unsigned long chan_hdl,
-		union __packed gsi_channel_scratch val)
+		union gsi_channel_scratch val)
 {
 	struct gsi_chan_ctx *ctx;
 
@@ -2744,7 +2747,7 @@ int gsi_write_channel_scratch(unsigned long chan_hdl,
 EXPORT_SYMBOL(gsi_write_channel_scratch);
 
 int gsi_read_channel_scratch(unsigned long chan_hdl,
-		union __packed gsi_channel_scratch *val)
+		union gsi_channel_scratch *val)
 {
 	struct gsi_chan_ctx *ctx;
 

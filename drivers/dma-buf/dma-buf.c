@@ -2,7 +2,6 @@
  * Framework for buffer objects that can be shared across devices/subsystems.
  *
  * Copyright(C) 2011 Linaro Limited. All rights reserved.
- * Copyright (C) 2021 XiaoMi, Inc.
  * Author: Sumit Semwal <sumit.semwal@ti.com>
  *
  * Many thanks to linaro-mm-sig list, and specially
@@ -130,7 +129,7 @@ static int dma_buf_release(struct inode *inode, struct file *file)
 	struct dma_buf *dmabuf;
 	struct dentry *dentry = file->f_path.dentry;
 	int dtor_ret = 0;
-        pid_t tgid = task_tgid_nr(current);
+    pid_t tgid = task_tgid_nr(current);
 
 	if (!is_dma_buf_file(file))
 		return -EINVAL;
@@ -180,7 +179,7 @@ static int dma_buf_release(struct inode *inode, struct file *file)
 static int dma_buf_mmap_internal(struct file *file, struct vm_area_struct *vma)
 {
 	struct dma_buf *dmabuf;
-        pid_t tgid = task_tgid_nr(current);
+    pid_t tgid = task_tgid_nr(current);
 
 	if (!is_dma_buf_file(file))
 		return -EINVAL;
@@ -191,7 +190,9 @@ static int dma_buf_mmap_internal(struct file *file, struct vm_area_struct *vma)
 	if (vma->vm_pgoff + vma_pages(vma) >
 	    dmabuf->size >> PAGE_SHIFT)
 		return -EINVAL;
+
 	trace_dma_buf_mmap_internal(file, vma, tgid);
+
 	return dmabuf->ops->mmap(dmabuf, vma);
 }
 
@@ -598,7 +599,7 @@ struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info)
 	char *bufname;
 	int ret;
 	long cnt;
-        pid_t tgid = task_tgid_nr(current);
+    pid_t tgid = task_tgid_nr(current);
 
 	if (!exp_info->resv)
 		alloc_size += sizeof(struct reservation_object);
@@ -1330,6 +1331,18 @@ int dma_buf_get_flags(struct dma_buf *dmabuf, unsigned long *flags)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(dma_buf_get_flags);
+
+int dma_buf_get_uuid(struct dma_buf *dmabuf, uuid_t *uuid)
+{
+	if (WARN_ON(!dmabuf) || !uuid)
+		return -EINVAL;
+
+	if (!dmabuf->ops->get_uuid)
+		return -ENODEV;
+
+	return dmabuf->ops->get_uuid(dmabuf, uuid);
+}
+EXPORT_SYMBOL_GPL(dma_buf_get_uuid);
 
 #ifdef CONFIG_DEBUG_FS
 static int dma_buf_debug_show(struct seq_file *s, void *unused)

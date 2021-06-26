@@ -322,10 +322,19 @@ static const struct attribute_group mhi_sysfs_group = {
 
 void mhi_create_sysfs(struct mhi_controller *mhi_cntrl)
 {
-	sysfs_create_group(&mhi_cntrl->mhi_dev->dev.kobj, &mhi_sysfs_group);
-	if (mhi_cntrl->mhi_tsync)
-		sysfs_create_group(&mhi_cntrl->mhi_dev->dev.kobj,
+	int ret;
+
+	ret = sysfs_create_group(&mhi_cntrl->mhi_dev->dev.kobj,
+			&mhi_sysfs_group);
+	if (ret)
+		MHI_CNTRL_LOG("Failed to create mhi_sysfs_group");
+
+	if (mhi_cntrl->mhi_tsync) {
+		ret = sysfs_create_group(&mhi_cntrl->mhi_dev->dev.kobj,
 				   &mhi_tsync_group);
+		if (ret)
+			MHI_CNTRL_LOG("Failed to create mhi_tsync_group");
+	}
 }
 
 void mhi_destroy_sysfs(struct mhi_controller *mhi_cntrl)
@@ -1773,6 +1782,13 @@ int mhi_prepare_for_power_up(struct mhi_controller *mhi_cntrl)
 					   &bhie_off);
 			if (ret) {
 				MHI_CNTRL_ERR("Error getting bhie offset\n");
+				goto bhie_error;
+			}
+
+			if (bhie_off >= mhi_cntrl->len) {
+				MHI_ERR("Invalid BHIE=0x%x  len=0x%x\n",
+					bhie_off, mhi_cntrl->len);
+				ret = -EINVAL;
 				goto bhie_error;
 			}
 

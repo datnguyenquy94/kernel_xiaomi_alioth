@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
- * Copyright (C) 2021 XiaoMi, Inc.
  */
 
 #ifndef __Q6_INIT_H__
@@ -17,21 +16,17 @@ int core_init(void);
 int rtac_init(void);
 int msm_audio_ion_init(void);
 int avtimer_init(void);
-
 #ifdef CONFIG_MSM_CSPL
 int crus_sp_init(void);
 #endif
-
 #ifdef CONFIG_MSM_MDF
 int msm_mdf_init(void);
 void msm_mdf_exit(void);
 #else
 int elliptic_driver_init(void);
-/* for mius start */
 #ifdef CONFIG_US_PROXIMITY
 int mius_driver_init(void);
 #endif
-/* for mius end */
 static inline int msm_mdf_init(void)
 {
 	return 0;
@@ -58,7 +53,6 @@ static inline void spk_params_exit(void)
 #ifdef CONFIG_MSM_CSPL
 void crus_sp_exit(void);
 #endif
-
 void avtimer_exit(void);
 void msm_audio_ion_exit(void);
 void rtac_exit(void);
@@ -75,11 +69,9 @@ int elliptic_driver_exit(void);
 int audio_slimslave_init(void);
 void audio_slimslave_exit(void);
 #else
-/* for mius start */
 #ifdef CONFIG_US_PROXIMITY
 int mius_driver_exit(void);
 #endif
-/* for mius end */
 static inline int audio_slimslave_init(void)
 {
 	return 0;

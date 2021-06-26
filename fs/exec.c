@@ -77,6 +77,17 @@ int suid_dumpable = 0;
 static LIST_HEAD(formats);
 static DEFINE_RWLOCK(binfmt_lock);
 
+#define ZYGOTE32_BIN	"/system/bin/app_process32"
+#define ZYGOTE64_BIN	"/system/bin/app_process64"
+static atomic_t zygote32_pid;
+static atomic_t zygote64_pid;
+
+bool is_zygote_pid(pid_t pid)
+{
+	return atomic_read(&zygote32_pid) == pid ||
+		atomic_read(&zygote64_pid) == pid;
+}
+
 void __register_binfmt(struct linux_binfmt * fmt, int insert)
 {
 	BUG_ON(!fmt);
@@ -1011,7 +1022,7 @@ static int exec_mmap(struct mm_struct *mm)
 	/* Notify parent that we're no longer interested in the old VM */
 	tsk = current;
 	old_mm = current->mm;
-	mm_release(tsk, old_mm);
+	exec_mm_release(tsk, old_mm);
 
 	if (old_mm) {
 		sync_mm_rss(old_mm);
@@ -1028,10 +1039,23 @@ static int exec_mmap(struct mm_struct *mm)
 		}
 	}
 	task_lock(tsk);
+
+	local_irq_disable();
 	active_mm = tsk->active_mm;
-	tsk->mm = mm;
 	tsk->active_mm = mm;
+	tsk->mm = mm;
+	/*
+	 * This prevents preemption while active_mm is being loaded and
+	 * it and mm are being updated, which could cause problems for
+	 * lazy tlb mm refcounting when these are updated by context
+	 * switches. Not all architectures can handle irqs off over
+	 * activate_mm yet.
+	 */
+	if (!IS_ENABLED(CONFIG_ARCH_WANT_IRQS_OFF_ACTIVATE_MM))
+		local_irq_enable();
 	activate_mm(active_mm, mm);
+	if (IS_ENABLED(CONFIG_ARCH_WANT_IRQS_OFF_ACTIVATE_MM))
+		local_irq_enable();
 	tsk->mm->vmacache_seqnum = 0;
 	vmacache_flush(tsk);
 	task_unlock(tsk);
@@ -1269,6 +1293,8 @@ int flush_old_exec(struct linux_binprm * bprm)
 	 */
 	set_mm_exe_file(bprm->mm, bprm->file);
 
+	would_dump(bprm, bprm->file);
+
 	/*
 	 * Release all of the old mmap stuff
 	 */
@@ -1378,7 +1404,7 @@ void setup_new_exec(struct linux_binprm * bprm)
 
 	/* An exec changes our domain. We are no longer part of the thread
 	   group */
-	current->self_exec_id++;
+	WRITE_ONCE(current->self_exec_id, current->self_exec_id + 1);
 	flush_signal_handlers(current, 0);
 }
 EXPORT_SYMBOL(setup_new_exec);
@@ -1426,7 +1452,6 @@ static void free_bprm(struct linux_binprm *bprm)
 	/* If a binfmt changed the interp, free it. */
 	if (bprm->interp != bprm->filename)
 		kfree(bprm->interp);
-	kfree(bprm);
 }
 
 int bprm_change_interp(const char *interp, struct linux_binprm *bprm)
@@ -1712,7 +1737,7 @@ static int __do_execve_file(int fd, struct filename *filename,
 			    int flags, struct file *file)
 {
 	char *pathbuf = NULL;
-	struct linux_binprm *bprm;
+	struct linux_binprm bprm;
 	struct files_struct *displaced;
 	int retval;
 
@@ -1739,16 +1764,13 @@ static int __do_execve_file(int fd, struct filename *filename,
 	if (retval)
 		goto out_ret;
 
-	retval = -ENOMEM;
-	bprm = kzalloc(sizeof(*bprm), GFP_KERNEL);
-	if (!bprm)
-		goto out_files;
+	memset(&bprm, 0, sizeof(bprm));
 
-	retval = prepare_bprm_creds(bprm);
+	retval = prepare_bprm_creds(&bprm);
 	if (retval)
 		goto out_free;
 
-	check_unsafe_exec(bprm);
+	check_unsafe_exec(&bprm);
 	current->in_execve = 1;
 
 	if (!file)
@@ -1759,11 +1781,11 @@ static int __do_execve_file(int fd, struct filename *filename,
 
 	sched_exec();
 
-	bprm->file = file;
+	bprm.file = file;
 	if (!filename) {
-		bprm->filename = "none";
+		bprm.filename = "none";
 	} else if (fd == AT_FDCWD || filename->name[0] == '/') {
-		bprm->filename = filename->name;
+		bprm.filename = filename->name;
 	} else {
 		if (filename->name[0] == '\0')
 			pathbuf = kasprintf(GFP_KERNEL, "/dev/fd/%d", fd);
@@ -1780,45 +1802,50 @@ static int __do_execve_file(int fd, struct filename *filename,
 		 * current->files (due to unshare_files above).
 		 */
 		if (close_on_exec(fd, rcu_dereference_raw(current->files->fdt)))
-			bprm->interp_flags |= BINPRM_FLAGS_PATH_INACCESSIBLE;
-		bprm->filename = pathbuf;
+			bprm.interp_flags |= BINPRM_FLAGS_PATH_INACCESSIBLE;
+		bprm.filename = pathbuf;
 	}
-	bprm->interp = bprm->filename;
+	bprm.interp = bprm.filename;
 
-	retval = bprm_mm_init(bprm);
+	retval = bprm_mm_init(&bprm);
 	if (retval)
 		goto out_unmark;
 
-	bprm->argc = count(argv, MAX_ARG_STRINGS);
-	if ((retval = bprm->argc) < 0)
+	bprm.argc = count(argv, MAX_ARG_STRINGS);
+	if ((retval = bprm.argc) < 0)
 		goto out;
 
-	bprm->envc = count(envp, MAX_ARG_STRINGS);
-	if ((retval = bprm->envc) < 0)
+	bprm.envc = count(envp, MAX_ARG_STRINGS);
+	if ((retval = bprm.envc) < 0)
 		goto out;
 
-	retval = prepare_binprm(bprm);
+	retval = prepare_binprm(&bprm);
 	if (retval < 0)
 		goto out;
 
-	retval = copy_strings_kernel(1, &bprm->filename, bprm);
+	retval = copy_strings_kernel(1, &bprm.filename, &bprm);
 	if (retval < 0)
 		goto out;
 
-	bprm->exec = bprm->p;
-	retval = copy_strings(bprm->envc, envp, bprm);
+	bprm.exec = bprm.p;
+	retval = copy_strings(bprm.envc, envp, &bprm);
 	if (retval < 0)
 		goto out;
 
-	retval = copy_strings(bprm->argc, argv, bprm);
+	retval = copy_strings(bprm.argc, argv, &bprm);
 	if (retval < 0)
 		goto out;
 
-	would_dump(bprm, bprm->file);
-
-	retval = exec_binprm(bprm);
+	retval = exec_binprm(&bprm);
 	if (retval < 0)
 		goto out;
+
+	if (capable(CAP_SYS_ADMIN)) {
+		if (unlikely(!strcmp(filename->name, ZYGOTE32_BIN)))
+			atomic_set(&zygote32_pid, current->pid);
+		else if (unlikely(!strcmp(filename->name, ZYGOTE64_BIN)))
+			atomic_set(&zygote64_pid, current->pid);
+	}
 
 	/* execve succeeded */
 	current->fs->in_exec = 0;
@@ -1827,7 +1854,7 @@ static int __do_execve_file(int fd, struct filename *filename,
 	rseq_execve(current);
 	acct_update_integrals(current);
 	task_numa_free(current, false);
-	free_bprm(bprm);
+	free_bprm(&bprm);
 	kfree(pathbuf);
 	if (filename)
 		putname(filename);
@@ -1836,9 +1863,9 @@ static int __do_execve_file(int fd, struct filename *filename,
 	return retval;
 
 out:
-	if (bprm->mm) {
-		acct_arg_size(bprm, 0);
-		mmput(bprm->mm);
+	if (bprm.mm) {
+		acct_arg_size(&bprm, 0);
+		mmput(bprm.mm);
 	}
 
 out_unmark:
@@ -1846,10 +1873,9 @@ out_unmark:
 	current->in_execve = 0;
 
 out_free:
-	free_bprm(bprm);
+	free_bprm(&bprm);
 	kfree(pathbuf);
 
-out_files:
 	if (displaced)
 		reset_files_struct(displaced);
 out_ret:

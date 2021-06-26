@@ -2,7 +2,6 @@
 
 /*
  * Copyright (c) 2011-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2021 XiaoMi, Inc.
  */
 
 #define pr_fmt(fmt) "%s: " fmt, __func__

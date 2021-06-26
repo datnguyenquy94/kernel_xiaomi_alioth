@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
- * Copyright (C) 2021 XiaoMi, Inc.
  */
 
 #define pr_fmt(fmt) "QCOM-STEPCHG: %s: " fmt, __func__
@@ -553,7 +552,7 @@ static int get_val(struct range_data *range, int hysteresis, int current_index,
 	 * of our current index.
 	 */
 	if (*new_index == current_index + 1) {
-		if (threshold < range[*new_index].low_threshold) {
+		if (threshold < range[*new_index].low_threshold + hysteresis) {
 			/*
 			 * Stay in the current index, threshold is not higher
 			 * by hysteresis amount

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015-2020, The Linux Foundation. All rights reserved.
- * Copyright (C) 2021 XiaoMi, Inc.
  */
 
 #include <linux/irq.h>
@@ -2102,14 +2101,18 @@ handle_irq:
 				swrm->intr_mask);
 			break;
 		case SWRM_INTERRUPT_STATUS_RD_FIFO_OVERFLOW:
-			dev_dbg(swrm->dev, "%s: SWR read FIFO overflow\n",
-				__func__);
+			value = swr_master_read(swrm, SWRM_CMD_FIFO_STATUS);
+			dev_err(swrm->dev,
+				"%s: SWR read FIFO overflow fifo status 0x%x\n",
+				__func__, value);
 			swr_master_write(swrm, SWRM_COMP_SW_RESET, 0x01);
 			swrm_master_init(swrm);
 			break;
 		case SWRM_INTERRUPT_STATUS_RD_FIFO_UNDERFLOW:
-			dev_dbg(swrm->dev, "%s: SWR read FIFO underflow\n",
-				__func__);
+			value = swr_master_read(swrm, SWRM_CMD_FIFO_STATUS);
+			dev_err(swrm->dev,
+				"%s: SWR read FIFO underflow fifo status 0x%x\n",
+				__func__, value);
 			swr_master_write(swrm, SWRM_COMP_SW_RESET, 0x01);
 			swrm_master_init(swrm);
 			break;
@@ -2161,11 +2164,11 @@ handle_irq:
 		case SWRM_INTERRUPT_STATUS_CLK_STOP_FINISHED_V2:
 			break;
 		case SWRM_INTERRUPT_STATUS_EXT_CLK_STOP_WAKEUP:
-			if (swrm->state == SWR_MSTR_UP) {
+			if (swrm->state == SWR_MSTR_UP)
 				dev_dbg(swrm->dev,
 					"%s:SWR Master is already up\n",
 					__func__);
-			} else {
+			else {
 				dev_err_ratelimited(swrm->dev,
 					"%s: SWR wokeup during clock stop\n",
 					__func__);
@@ -2842,8 +2845,6 @@ static int swrm_probe(struct platform_device *pdev)
 	 * controller will be up now
 	 */
 	swr_master_add_boarddevices(&swrm->master);
-	if (swrm_request_hw_vote(swrm, LPASS_AUDIO_CORE, true))
-		dev_dbg(&pdev->dev, "%s: Audio HW Vote is failed\n", __func__);
 	mutex_lock(&swrm->mlock);
 	swrm_clk_request(swrm, true);
 	swrm->version = swr_master_read(swrm, SWRM_COMP_HW_VERSION);
@@ -2991,7 +2992,6 @@ static int swrm_runtime_resume(struct device *dev)
 	int ret = 0;
 	bool swrm_clk_req_err = false;
 	bool hw_core_err = false;
-
 	struct swr_master *mstr = &swrm->master;
 	struct swr_device *swr_dev;
 
@@ -3006,9 +3006,10 @@ static int swrm_runtime_resume(struct device *dev)
 			__func__);
 		hw_core_err = true;
 	}
-	if (swrm_request_hw_vote(swrm, LPASS_AUDIO_CORE, true))
+	if (swrm_request_hw_vote(swrm, LPASS_AUDIO_CORE, true)) {
 		dev_err(dev, "%s:lpass audio hw enable failed\n",
 			__func__);
+	}
 
 	if ((swrm->state == SWR_MSTR_DOWN) ||
 	    (swrm->state == SWR_MSTR_SSR && swrm->dev_up)) {
@@ -3227,10 +3228,6 @@ static int swrm_runtime_suspend(struct device *dev)
 		}
 
 	}
-	if (swrm_request_hw_vote(swrm, LPASS_AUDIO_CORE, false))
-		dev_dbg(dev, "%s:lpass audio hw enable failed\n",
-			__func__);
-
 	/* Retain  SSR state until resume */
 	if (current_state != SWR_MSTR_SSR)
 		swrm->state = SWR_MSTR_DOWN;

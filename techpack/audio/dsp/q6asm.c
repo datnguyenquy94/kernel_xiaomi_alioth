@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
- * Copyright (C) 2021 XiaoMi, Inc.
  * Author: Brian Swetland <swetland@google.com>
  *
  * This software is licensed under the terms of the GNU General Public
@@ -2214,7 +2213,7 @@ static int32_t q6asm_callback(struct apr_client_data *data, void *priv)
 			}
 			if ( data->payload_size >= 2 * sizeof(uint32_t) &&
 				(lower_32_bits(port->buf[buf_index].phys) !=
-				payload[0] ||
+				payload[0] || 
 				msm_audio_populate_upper_32_bits(
 					port->buf[buf_index].phys) != payload[1])) {
 				pr_debug("%s: Expected addr %pK\n",
@@ -11111,7 +11110,7 @@ static int q6asm_get_asm_topology_apptype(struct q6asm_cal_info *cal_info)
 unlock:
 	mutex_unlock(&cal_data[ASM_TOPOLOGY_CAL]->lock);
 done:
-	pr_err("%s: popp using topology 0x%x app_type %d\n", __func__,
+	pr_debug("%s: Using topology %d app_type %d\n", __func__,
 			cal_info->topology_id, cal_info->app_type);
 
 	return 0;

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
- * Copyright (C) 2021 XiaoMi, Inc.
  */
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -3103,10 +3102,9 @@ int adm_open(int port_id, int path, int rate, int channel_mode, int topology,
 	int param_size;
 	int num_ec_ref_rx_chans = this_adm.num_ec_ref_rx_chans;
 
-	pr_err("%s:port %#x path:%d rate:%d channel_mode:%d perf_mode:%d topology 0x%x bit_width %d \
-		app_type %d acdb_id %d session_type %d passthr_mode %d \n",
-			__func__, port_id, path, rate, channel_mode, perf_mode,
-				topology, bit_width, app_type, acdb_id, session_type, passthr_mode);
+	pr_debug("%s:port %#x path:%d rate:%d mode:%d perf_mode:%d,topo_id %d\n",
+		 __func__, port_id, path, rate, channel_mode, perf_mode,
+		 topology);
 
 	port_id = q6audio_convert_virtual_to_portid(port_id);
 	port_idx = adm_validate_and_get_port_index(port_id);
@@ -3184,12 +3182,10 @@ int adm_open(int port_id, int path, int rate, int channel_mode, int topology,
 	}
 
 	if (topology == VPM_TX_VOICE_SMECNS_V2_COPP_TOPOLOGY ||
-	        topology == VPM_TX_VOICE_FLUENCE_SM_COPP_TOPOLOGY ||
 		topology == ADM_TOPOLOGY_ID_AUDIO_RX_FVSAM ||
-		topology == ADM_TOPOLOGY_ID_AUDIO_RX_MISE) {
-		pr_debug("%s: set channel_mode as 1 for topology=%d\n", __func__, topology);
+		topology == ADM_TOPOLOGY_ID_AUDIO_RX_MISE ||
+	    topology == VPM_TX_VOICE_FLUENCE_SM_COPP_TOPOLOGY)
 		channel_mode = 1;
-	}
 
 	/*
 	 * Routing driver reuses the same adm for streams with the same
@@ -3929,7 +3925,7 @@ int adm_close(int port_id, int perf_mode, int copp_idx)
 	int usb_copp_idx = 0;
 	struct apr_hdr usb_close;
 
-	pr_err("%s: port_id=0x%x perf_mode: %d copp_idx: %d\n", __func__,
+	pr_debug("%s: port_id=0x%x perf_mode: %d copp_idx: %d\n", __func__,
 		 port_id, perf_mode, copp_idx);
 
 	port_id = q6audio_convert_virtual_to_portid(port_id);
