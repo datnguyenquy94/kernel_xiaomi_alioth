@@ -1463,6 +1463,8 @@ static int smblite_post_init(struct smblite *chip)
 		}
 	}
 
+	rerun_election(chg->temp_change_irq_disable_votable);
+
 	return 0;
 }
 
