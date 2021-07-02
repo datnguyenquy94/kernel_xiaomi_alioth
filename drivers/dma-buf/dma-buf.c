@@ -51,6 +51,13 @@
 
 static atomic_long_t name_counter;
 
+static struct kmem_cache *kmem_attach_pool;
+
+void __init init_dma_buf_kmem_pool(void)
+{
+	kmem_attach_pool = KMEM_CACHE(dma_buf_attachment, SLAB_HWCACHE_ALIGN | SLAB_PANIC);
+}
+
 static inline int is_dma_buf_file(struct file *);
 
 struct dma_buf_list {
@@ -785,8 +792,8 @@ struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
 	if (WARN_ON(!dmabuf || !dev))
 		return ERR_PTR(-EINVAL);
 
-	attach = kzalloc(sizeof(*attach), GFP_KERNEL);
-	if (!attach)
+	attach = kmem_cache_zalloc(kmem_attach_pool, GFP_KERNEL);
+	if (attach == NULL)
 		return ERR_PTR(-ENOMEM);
 
 	attach->dev = dev;
@@ -805,7 +812,7 @@ struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
 	return attach;
 
 err_attach:
-	kfree(attach);
+	kmem_cache_free(kmem_attach_pool, attach);
 	mutex_unlock(&dmabuf->lock);
 	return ERR_PTR(ret);
 }
@@ -830,7 +837,7 @@ void dma_buf_detach(struct dma_buf *dmabuf, struct dma_buf_attachment *attach)
 		dmabuf->ops->detach(dmabuf, attach);
 
 	mutex_unlock(&dmabuf->lock);
-	kfree(attach);
+	kmem_cache_free(kmem_attach_pool, attach);
 }
 EXPORT_SYMBOL_GPL(dma_buf_detach);
 
@@ -1208,9 +1215,6 @@ EXPORT_SYMBOL_GPL(dma_buf_kunmap);
 int dma_buf_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma,
 		 unsigned long pgoff)
 {
-	struct file *oldfile;
-	int ret;
-
 	if (WARN_ON(!dmabuf || !vma))
 		return -EINVAL;
 
@@ -1224,22 +1228,11 @@ int dma_buf_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma,
 		return -EINVAL;
 
 	/* readjust the vma */
-	get_file(dmabuf->file);
-	oldfile = vma->vm_file;
-	vma->vm_file = dmabuf->file;
+	fput(vma->vm_file);
+	vma->vm_file = get_file(dmabuf->file);
 	vma->vm_pgoff = pgoff;
 
-	ret = dmabuf->ops->mmap(dmabuf, vma);
-	if (ret) {
-		/* restore old parameters on failure */
-		vma->vm_file = oldfile;
-		fput(dmabuf->file);
-	} else {
-		if (oldfile)
-			fput(oldfile);
-	}
-	return ret;
-
+	return dmabuf->ops->mmap(dmabuf, vma);
 }
 EXPORT_SYMBOL_GPL(dma_buf_mmap);
 

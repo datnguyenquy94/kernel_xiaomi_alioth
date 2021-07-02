@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2020 The Linux Foundation. All rights reserved.
  */
 
 #include <linux/debugfs.h>
@@ -624,7 +624,6 @@ static int smb5_charge_gpio_init(struct smb_charger *chg, struct device_node *no
 #define MICRO_P1A			100000
 #define MICRO_1PA			1000000
 #define MICRO_3PA			3000000
-#define MICRO_4PA			4000000
 #define OTG_DEFAULT_DEGLITCH_TIME_MS	50
 #define DEFAULT_WD_BARK_TIME		64
 #define DEFAULT_WD_SNARL_TIME_8S	0x07
@@ -656,9 +655,6 @@ static int smb5_parse_dt_misc(struct smb5 *chip, struct device_node *node)
 	chg->sw_jeita_enabled = of_property_read_bool(node,
 				"qcom,sw-jeita-enable");
 
-	chg->jeita_arb_enable = of_property_read_bool(node,
-				"qcom,jeita-arb-enable");
-
 	chg->six_pin_step_charge_enable = of_property_read_bool(node,
 				"mi,six-pin-step-chg");
 
@@ -671,8 +667,7 @@ static int smb5_parse_dt_misc(struct smb5 *chip, struct device_node *node)
 	chg->pd_not_supported = chg->pd_not_supported ||
 			of_property_read_bool(node, "qcom,usb-pd-disable");
 
-	chg->lpd_disabled = chg->lpd_disabled ||
-			of_property_read_bool(node, "qcom,lpd-disable");
+	chg->lpd_disabled = of_property_read_bool(node, "qcom,lpd-disable");
 
 	chg->use_bq_pump = of_property_read_bool(node,
 				"mi,use-bq-pump");
@@ -1161,12 +1156,6 @@ static int smb5_parse_dt_misc(struct smb5 *chip, struct device_node *node)
 					&chg->chg_param.hvdcp2_max_icl_ua);
 	if (chg->chg_param.hvdcp2_max_icl_ua <= 0)
 		chg->chg_param.hvdcp2_max_icl_ua = MICRO_3PA;
-
-	/* Used only in Adapter CV mode of operation */
-	of_property_read_u32(node, "qcom,qc4-max-icl-ua",
-					&chg->chg_param.qc4_max_icl_ua);
-	if (chg->chg_param.qc4_max_icl_ua <= 0)
-		chg->chg_param.qc4_max_icl_ua = MICRO_4PA;
 
 	return 0;
 }
@@ -3426,13 +3415,16 @@ static int smb5_configure_typec(struct smb_charger *chg)
 	}
 
 	/*
-	 * Across reboot, standard typeC cables get detected as legacy
-	 * cables due to VBUS attachment prior to CC attach/detach. Reset
-	 * the legacy detection logic by enabling/disabling the typeC mode.
+	 * Across reboot, standard typeC cables get detected as legacy cables
+	 * due to VBUS attachment prior to CC attach/dettach. To handle this,
+	 * "early_usb_attach" flag is used, which assumes that across reboot,
+	 * the cable connected can be standard typeC. However, its jurisdiction
+	 * is limited to PD capable designs only. Hence, for non-PD type designs
+	 * reset legacy cable detection by disabling/enabling typeC mode.
 	 */
-	if (val & TYPEC_LEGACY_CABLE_STATUS_BIT) {
+	if (chg->pd_not_supported && (val & TYPEC_LEGACY_CABLE_STATUS_BIT)) {
 		pval.intval = POWER_SUPPLY_TYPEC_PR_NONE;
-		rc = smblib_set_prop_typec_power_role(chg, &pval);
+		smblib_set_prop_typec_power_role(chg, &pval);
 		if (rc < 0) {
 			dev_err(chg->dev, "Couldn't disable TYPEC rc=%d\n", rc);
 			return rc;
@@ -3442,7 +3434,7 @@ static int smb5_configure_typec(struct smb_charger *chg)
 		msleep(50);
 
 		pval.intval = POWER_SUPPLY_TYPEC_PR_DUAL;
-		rc = smblib_set_prop_typec_power_role(chg, &pval);
+		smblib_set_prop_typec_power_role(chg, &pval);
 		if (rc < 0) {
 			dev_err(chg->dev, "Couldn't enable TYPEC rc=%d\n", rc);
 			return rc;

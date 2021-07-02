@@ -875,7 +875,7 @@ static int _sde_connector_mi_dimlayer_hbm_fence(struct drm_connector *connector)
 	c_conn = to_sde_connector(connector);
 
 	if (c_conn->connector_type != DRM_MODE_CONNECTOR_DSI)
-		return 0;
+		return -EINVAL;
 
 	dsi_display = (struct dsi_display *) c_conn->display;
 	if (!dsi_display || !dsi_display->panel) {
@@ -890,9 +890,9 @@ static int _sde_connector_mi_dimlayer_hbm_fence(struct drm_connector *connector)
 	}
 
 	if (!c_conn->allow_bl_update) {
-		/*Skip 2 frames after panel on to avoid hbm flicker*/
+		/*Skip 4 frames after panel on to avoid hbm flicker*/
 		if (mi_cfg->dc_type == 1 && dsi_display->panel->power_mode == SDE_MODE_DPMS_ON)
-			skip_frame_count = 2;
+			skip_frame_count = 4;
 		return 0;
 	}
 
@@ -933,18 +933,6 @@ static int _sde_connector_mi_dimlayer_hbm_fence(struct drm_connector *connector)
 				c_conn->fod_frame_count = 0;
 			}
 			if (skip == false) {
-				/* dimming off before hbm ctl */
-				if (mi_cfg->prepare_before_fod_hbm_on && ((mi_cfg->panel_id >> 8) == 0x4A3232003808)) {
-					/* Set flags to disable dimming and backlight */
-					mi_cfg->dimming_state = STATE_DIM_BLOCK;
-					mi_cfg->fod_hbm_enabled = true;
-
-					sde_connector_pre_hbm_ctl(connector);
-					sde_encoder_wait_for_event(c_conn->encoder, MSM_ENC_VBLANK);
-				}
-
-				if (mi_cfg->delay_before_fod_hbm_on)
-					sde_encoder_wait_for_event(c_conn->encoder, MSM_ENC_VBLANK);
 
 				sde_connector_hbm_ctl(connector, DISPPARAM_HBM_FOD_ON);
 
@@ -987,7 +975,7 @@ static int _sde_connector_mi_dimlayer_hbm_fence(struct drm_connector *connector)
 				sde_encoder_wait_for_event(c_conn->encoder, MSM_ENC_VBLANK);
 			sde_connector_hbm_ctl(connector, DISPPARAM_HBM_FOD_OFF);
 			if (mi_cfg->dc_type)
-				sysfs_notify(&c_conn->bl_device->dev.kobj, NULL, "brightness_clone");
+				sysfs_notify(&c_conn->bl_device->dev.kobj, NULL, "brightness");
 			if (mi_cfg->delay_after_fod_hbm_off)
 				sde_encoder_wait_for_event(c_conn->encoder, MSM_ENC_VBLANK);
 
@@ -3275,6 +3263,9 @@ static uint32_t brightness_to_alpha(struct dsi_panel_mi_cfg *mi_cfg, uint32_t br
 	int i;
 	int level = mi_cfg->brightnes_alpha_lut_item_count;
 
+	if (!mi_cfg->brightness_alpha_lut)
+		return 0;
+
 	if (brightness == 0x0)
 		return mi_cfg->brightness_alpha_lut[0].alpha;
 
@@ -3282,6 +3273,9 @@ static uint32_t brightness_to_alpha(struct dsi_panel_mi_cfg *mi_cfg, uint32_t br
 		if (mi_cfg->brightness_alpha_lut[i].brightness >= brightness)
 			break;
 	}
+
+	if (i == 0)
+		return mi_cfg->brightness_alpha_lut[i].alpha;
 
 	if (i == level)
 		return mi_cfg->brightness_alpha_lut[i - 1].alpha;

@@ -1493,7 +1493,6 @@ static const struct apsd_result *smblib_update_usb_type(struct smb_charger *chg)
 	/* if PD is active, APSD is disabled so won't have a valid result */
 	if (chg->pd_active) {
 		chg->real_charger_type = POWER_SUPPLY_TYPE_USB_PD;
-		chg->usb_psy_desc.type = POWER_SUPPLY_TYPE_USB_PD;
 	} else if (chg->qc3p5_detected) {
 		chg->real_charger_type = POWER_SUPPLY_TYPE_USB_HVDCP_3P5;
 		chg->usb_psy_desc.type = POWER_SUPPLY_TYPE_USB_PD;
@@ -1507,7 +1506,6 @@ static const struct apsd_result *smblib_update_usb_type(struct smb_charger *chg)
 				(!chg->qc3p5_supported || chg->qc3p5_auth_complete ||
 				 apsd_result->pst != POWER_SUPPLY_TYPE_USB_HVDCP_3)) {
 			chg->real_charger_type = apsd_result->pst;
-			chg->usb_psy_desc.type = apsd_result->pst;
 		}
 	}
 
@@ -3492,11 +3490,9 @@ static int smblib_therm_charging(struct smb_charger *chg)
 			chg->thermal_fcc_qc3_cp[chg->system_temp_level];
 		break;
 	case POWER_SUPPLY_TYPE_USB_PD:
-		if (chg->pd_active == POWER_SUPPLY_PD_PPS_ACTIVE) {
-			if (chg->pps_thermal_level < 0)
-				chg->pps_thermal_level = chg->system_temp_level;
-			thermal_fcc_ua =
-				chg->thermal_fcc_pps_cp[chg->pps_thermal_level];
+		if (chg->cp_reason == POWER_SUPPLY_CP_PPS) {
+		thermal_fcc_ua =
+			chg->thermal_fcc_pps_cp[chg->system_temp_level];
 		} else {
 			thermal_icl_ua =
 				chg->thermal_mitigation_icl[chg->system_temp_level];
@@ -6493,6 +6489,7 @@ static int smblib_handle_usb_current(struct smb_charger *chg,
 			 * real_charger_type
 			 */
 			chg->real_charger_type = POWER_SUPPLY_TYPE_USB;
+			chg->usb_psy_desc.type = POWER_SUPPLY_TYPE_USB_PD;
 			rc = vote(chg->usb_icl_votable, USB_PSY_VOTER,
 						true, usb_current);
 			if (rc < 0)
@@ -6645,12 +6642,7 @@ int smblib_set_prop_typec_power_role(struct smb_charger *chg,
 	smblib_dbg(chg, PR_MISC, "power role change: %d --> %d!",
 			chg->power_role, val->intval);
 
-	/*
-	 * Force the power-role if the initial value is NONE, for the
-	 * legacy cable detection WA.
-	 */
-	if (chg->power_role == val->intval &&
-			chg->power_role != POWER_SUPPLY_TYPEC_PR_NONE) {
+	if (chg->power_role == val->intval) {
 		smblib_dbg(chg, PR_MISC, "power role already in %d, ignore!",
 				chg->power_role);
 		return 0;
@@ -8767,7 +8759,7 @@ static void smblib_handle_hvdcp_check_timeout(struct smb_charger *chg,
 						HVDCP2_CURRENT_UA);
 				else
 					vote(chg->usb_icl_votable, SW_ICL_MAX_VOTER, true,
-						HVDCP_CURRENT_UA);
+							hvdcp_ua);
 			}
 		} else {
 			/* A plain DCP, enforce DCP ICL if specified */
@@ -12118,7 +12110,7 @@ int smblib_init(struct smb_charger *chg)
 		}
 
 		rc = qcom_step_chg_init(chg->dev, chg->step_chg_enabled,
-				chg->sw_jeita_enabled, chg->jeita_arb_enable);
+						chg->sw_jeita_enabled, false);
 		if (rc < 0) {
 			smblib_err(chg, "Couldn't init qcom_step_chg_init rc=%d\n",
 				rc);
