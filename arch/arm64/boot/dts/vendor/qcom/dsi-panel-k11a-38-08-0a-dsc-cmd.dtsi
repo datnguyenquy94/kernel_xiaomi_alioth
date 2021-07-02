@@ -23,8 +23,8 @@
 		qcom,mdss-dsi-dma-trigger = "trigger_sw";
 		qcom,mdss-dsi-mdp-trigger = "none";
 		qcom,mdss-dsi-reset-sequence = <0 10>, <1 10>;
-		qcom,mdss-pan-physical-width-dimension = <695>;
-		qcom,mdss-pan-physical-height-dimension = <1546>;
+		qcom,mdss-pan-physical-width-dimension = <71>;
+		qcom,mdss-pan-physical-height-dimension = <158>;
 		qcom,mdss-dsi-te-pin-select = <1>;
 		qcom,mdss-dsi-wr-mem-start = <0x2c>;
 		qcom,mdss-dsi-wr-mem-continue = <0x3c>;
@@ -158,7 +158,14 @@
 				qcom,mdss-dsi-off-command-state = "dsi_lp_mode";
 
 				qcom,mdss-dsi-timing-switch-command = [
-					39 01 00 00 09 00 02 60 00];
+					39 00 00 00 00 00 02 60 00
+					39 00 00 00 00 00 03 f0 5a 5a
+					39 00 00 00 00 00 03 fc 5a 5a
+					39 00 00 00 00 00 02 b0 16
+					39 00 00 00 00 00 02 d1 2e
+					39 00 00 00 00 00 03 fc a5 a5
+					39 01 00 00 0c 00 03 f0 a5 a5];
+
 				qcom,mdss-dsi-timing-switch-command-state = "dsi_lp_mode";
 
 				qcom,mdss-dsi-nolp-command = [
@@ -168,8 +175,12 @@
 					39 00 00 00 00 00 02 B0 0B
 					39 00 00 00 00 00 03 D8 59 70
 					39 00 00 00 00 00 02 60 00
+					39 00 00 00 00 00 03 fc 5a 5a
+					39 00 00 00 00 00 02 b0 16
+					39 00 00 00 00 00 02 d1 2e
+					39 00 00 00 00 00 03 fc a5 a5
 					39 01 00 00 00 00 02 53 28
-					39 01 00 00 09 00 03 F0 A5 A5
+					39 01 00 00 11 00 03 F0 A5 A5
 				];
 				qcom,mdss-dsi-nolp-command-state = "dsi_lp_mode";
 
@@ -296,18 +307,28 @@
 				qcom,mdss-dsi-off-command-state = "dsi_lp_mode";
 
 				qcom,mdss-dsi-timing-switch-command = [
-					39 01 00 00 00 00 02 60 10];
+					39 00 00 00 00 00 02 60 10
+					39 00 00 00 00 00 03 f0 5a 5a
+					39 00 00 00 00 00 03 fc 5a 5a
+					39 00 00 00 00 00 02 b0 16
+					39 00 00 00 00 00 02 d1 2e
+					39 00 00 00 00 00 03 fc a5 a5
+					39 01 00 00 00 00 03 f0 a5 a5];
 				qcom,mdss-dsi-timing-switch-command-state = "dsi_lp_mode";
 
 				qcom,mdss-dsi-nolp-command = [
-					39 01 00 00 00 00 03 F0 5A 5A
-					39 00 00 00 00 00 02 B0 0A
-					39 00 00 00 00 00 02 EE 06
-					39 00 00 00 00 00 02 B0 0B
-					39 00 00 00 00 00 03 D8 59 70
+					39 01 00 00 00 00 03 f0 5a 5a
+					39 00 00 00 00 00 02 b0 0a
+					39 00 00 00 00 00 02 ee 06
+					39 00 00 00 00 00 02 b0 0b
+					39 00 00 00 00 00 03 d8 59 70
 					39 00 00 00 00 00 02 60 10
+					39 00 00 00 00 00 03 fc 5a 5a
+					39 00 00 00 00 00 02 b0 16
+					39 00 00 00 00 00 02 d1 2e
+					39 00 00 00 00 00 03 fc a5 a5
 					39 01 00 00 00 00 02 53 28
-					39 01 00 00 09 00 03 F0 A5 A5
+					39 01 00 00 09 00 03 f0 a5 a5
 				];
 				qcom,mdss-dsi-nolp-command-state = "dsi_lp_mode";
 
@@ -330,8 +351,6 @@
 	mi,mdss-dsi-panel-hbm-off-51-index = <1>;
 	mi,esd-err-irq-gpio = <&tlmm 51 0x2001>;
 	mi,mdss-panel-on-dimming-delay = <120>;
-	mi,mdss-dsi-pan-enable-smart-fps;
-	mi,mdss-dsi-smart-fps-max_framerate = <120>;
 	mi,mdss-dsi-panel-hbm-brightness = <1>;
 	mi,mdss-dsi-panel-dc-threshold = <440>;
 	mi,mdss-dsi-panel-max-brightness-clone = <8191>;
@@ -355,22 +374,30 @@
 
 			mi,mdss-dsi-doze-hbm-command = [
 				05 01 00 00 00 00 02 28 00
-				39 00 00 00 00 00 03 F0 5A 5A
+				39 00 00 00 00 00 03 f0 5a 5a
 				39 00 00 00 00 00 02 60 00
-				39 00 00 00 00 00 02 B0 0B
-				39 00 00 00 00 00 03 D8 50 00
+				39 00 00 00 00 00 03 fc 5a 5a
+				39 00 00 00 00 00 02 b0 16
+				39 00 00 00 00 00 02 d1 2e
+				39 00 00 00 00 00 03 fc a5 a5
+				39 00 00 00 00 00 02 b0 0b
+				39 00 00 00 00 00 03 d8 50 00
 				39 00 00 00 00 00 02 53 22
-				39 01 00 00 22 00 03 F0 A5 A5
+				39 01 00 00 22 00 03 f0 a5 a5
 				05 01 00 00 00 00 02 29 00
 			];
 			mi,mdss-dsi-doze-lbm-command = [
 				05 01 00 00 00 00 02 28 00
-				39 00 00 00 00 00 03 F0 5A 5A
+				39 00 00 00 00 00 03 f0 5a 5a
 				39 00 00 00 00 00 02 60 00
-				39 00 00 00 00 00 02 B0 0B
-				39 00 00 00 00 00 03 D8 50 00
+				39 00 00 00 00 00 03 fc 5a 5a
+				39 00 00 00 00 00 02 b0 16
+				39 00 00 00 00 00 02 d1 2e
+				39 00 00 00 00 00 03 fc a5 a5
+				39 00 00 00 00 00 02 b0 0b
+				39 00 00 00 00 00 03 d8 50 00
 				39 00 00 00 00 00 02 53 23
-				39 01 00 00 22 00 03 F0 A5 A5
+				39 01 00 00 22 00 03 f0 a5 a5
 				05 01 00 00 00 00 02 29 00
 			];
 			mi,mdss-dsi-doze-hbm-command-state = "dsi_lp_mode";
