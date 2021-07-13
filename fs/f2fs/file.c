@@ -22,6 +22,10 @@
 #include <linux/file.h>
 #include <linux/nls.h>
 
+#if defined(CONFIG_UFSTW) && defined(UFS3V0)
+#include <linux/ufstw.h>
+#endif
+
 #include "f2fs.h"
 #include "node.h"
 #include "segment.h"
@@ -30,7 +34,6 @@
 #include "gc.h"
 #include "trace.h"
 #include <trace/events/f2fs.h>
-#include <trace/events/android_fs.h>
 
 static vm_fault_t f2fs_filemap_fault(struct vm_fault *vmf)
 {
@@ -199,8 +202,6 @@ static inline enum cp_reason_type need_do_checkpoint(struct inode *inode)
 		cp_reason = CP_HARDLINK;
 	else if (is_sbi_flag_set(sbi, SBI_NEED_CP))
 		cp_reason = CP_SB_NEED_CP;
-	else if (f2fs_parent_inode_xattr_set(inode))
-		cp_reason = CP_PARENT_XATTR_SET;
 	else if (file_wrong_pino(inode))
 		cp_reason = CP_WRONG_PINO;
 	else if (!f2fs_space_for_roll_forward(sbi))
@@ -260,20 +261,15 @@ static int f2fs_do_sync_file(struct file *file, loff_t start, loff_t end,
 	};
 	unsigned int seq_id = 0;
 
+#if defined(CONFIG_UFSTW) && defined(UFS3V0)
+	bool turbo_set = false;
+#endif
+
 	if (unlikely(f2fs_readonly(inode->i_sb) ||
 				is_sbi_flag_set(sbi, SBI_CP_DISABLED)))
 		return 0;
 
 	trace_f2fs_sync_file_enter(inode);
-
-	if (trace_android_fs_fsync_start_enabled()) {
-		char *path, pathbuf[MAX_TRACE_PATHBUF_LEN];
-
-		path = android_fstrace_get_pathname(pathbuf,
-				MAX_TRACE_PATHBUF_LEN, inode);
-		trace_android_fs_fsync_start(inode,
-				current->pid, path, current->comm);
-	}
 
 	if (S_ISDIR(inode->i_mode))
 		goto go_write;
@@ -332,6 +328,10 @@ go_write:
 		clear_inode_flag(inode, FI_UPDATE_WRITE);
 		goto out;
 	}
+#if defined(CONFIG_UFSTW) && defined(UFS3V0)
+	bdev_set_turbo_write(sbi->sb->s_bdev);
+	turbo_set = true;
+#endif
 sync_nodes:
 	atomic_inc(&sbi->wb_sync_req[NODE]);
 	ret = f2fs_fsync_node_pages(sbi, inode, &wbc, atomic, &seq_id);
@@ -378,9 +378,12 @@ flush_out:
 	}
 	f2fs_update_time(sbi, REQ_TIME);
 out:
+#if defined(CONFIG_UFSTW) && defined(UFS3V0)
+	if (turbo_set)
+		bdev_clear_turbo_write(sbi->sb->s_bdev);
+#endif
 	trace_f2fs_sync_file_exit(inode, cp_reason, datasync, ret);
 	f2fs_trace_ios(NULL, 1);
-	trace_android_fs_fsync_end(inode, start, end - start);
 
 	return ret;
 }
